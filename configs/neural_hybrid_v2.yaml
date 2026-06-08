@@ -1,0 +1,58 @@
+{
+  "model_id": "neural_hybrid_v2",
+  "model_version": "0.1.0",
+  "active": false,
+  "artifact_dir": "data/models_local/neural_hybrid_v2/latest",
+  "training": {
+    "validation_world_cups": [2018, 2022],
+    "cutoff_strategy": "previous_day",
+    "max_goals": 8,
+    "batch_size": 1024,
+    "max_epochs": 180,
+    "patience": 20,
+    "print_every_epochs": 1,
+    "checkpoint_every_epochs": 1,
+    "learning_rate": 0.0007,
+    "weight_decay": 0.0001,
+    "dropout": 0.2,
+    "hidden_dim": 512,
+    "num_blocks": 4,
+    "team_embedding_dim": 64,
+    "mixed_precision": true,
+    "seed": 42,
+    "loss_weights": {
+      "scoreline": 0.32,
+      "outcome": 0.38,
+      "goals": 0.10,
+      "calibration": 0.08,
+      "quiniela_reward": 0.12
+    }
+  },
+  "tuning": {
+    "objective": "guarded_ev_points",
+    "max_trials": 48,
+    "guardrails": {
+      "min_matrix_outcome_accuracy": 0.54,
+      "min_ev_outcome_accuracy": 0.54,
+      "matrix_outcome_bonus": 0.45,
+      "exact_bonus": 0.15,
+      "outcome_penalty": 3.5
+    },
+    "search_space": {
+      "training.learning_rate": [0.0003, 0.0007, 0.001],
+      "training.weight_decay": [0.00003, 0.0001, 0.0003],
+      "training.dropout": [0.1, 0.2, 0.3],
+      "training.hidden_dim": [384, 512, 768],
+      "training.num_blocks": [3, 4, 5],
+      "training.team_embedding_dim": [48, 64, 96],
+      "training.loss_weights.outcome": [0.32, 0.38, 0.45],
+      "training.loss_weights.scoreline": [0.25, 0.32, 0.40],
+      "training.loss_weights.quiniela_reward": [0.08, 0.12, 0.18]
+    }
+  },
+  "features": {
+    "uses_tournament_context": true,
+    "cutoff_strategy": "previous_day",
+    "use_model_priors": false
+  }
+}

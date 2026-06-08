@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "bytes": 12708,
+      "path": "metadata.json",
+      "sha256": "7f7f862e0ed4b8358d42fd73d12ee0065b9ee67b64caaf936c5d9e0bd1da3cd7"
+    },
+    {
+      "bytes": 490,
+      "path": "metrics.json",
+      "sha256": "b84c23b45f610e0fb3815f7c08580a98935ec04778e53ba55c96a12823c06ce8"
+    },
+    {
+      "bytes": 568,
+      "path": "metrics_live.json",
+      "sha256": "f357c76e018ed3e0f27274a5d3ebd81d571e8f8791411e9b54add0620edfa6a8"
+    },
+    {
+      "bytes": 13623587,
+      "path": "model.pt",
+      "sha256": "7de58456c524aeea826b76d21d58086793df7a0bf1d28cc3dbd3d4fba703faae"
+    },
+    {
+      "bytes": 4638,
+      "path": "training_log.csv",
+      "sha256": "58656ba7e73bc0a56dbfc8f1c6e5207eeb5c739553b9c181dc3918bb96ed55c7"
+    },
+    {
+      "bytes": 1822,
+      "path": "training_summary.json",
+      "sha256": "091048c0cd33aa75f4a2d3469e04fa0ac5aafcd93ef523febd51288d011410ca"
+    }
+  ],
+  "model_id": "neural_hybrid_v2",
+  "notes": "Modelo neural hibrido final compartido; entrenamientos/folds completos permanecen locales.",
+  "published_at_utc": "2026-06-08T23:08:23Z",
+  "source_dir": "D:\\Quiniela2026\\data\\models\\neural_hybrid_v2\\latest",
+  "version": "v2026-06-07"
+}

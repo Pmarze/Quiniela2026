@@ -1,0 +1,54 @@
+{
+  "model_id": "neural_scoreline_mlp",
+  "model_version": "0.2.0",
+  "active": false,
+  "artifact_dir": "data/models_local/neural_scoreline/latest",
+  "training": {
+    "validation_world_cups": [2018, 2022],
+    "max_goals": 8,
+    "batch_size": 1024,
+    "max_epochs": 120,
+    "patience": 14,
+    "print_every_epochs": 1,
+    "checkpoint_every_epochs": 1,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "dropout": 0.2,
+    "hidden_dim": 192,
+    "team_embedding_dim": 24,
+    "mixed_precision": true,
+    "seed": 42,
+    "loss_weights": {
+      "scoreline": 0.45,
+      "outcome": 0.25,
+      "goals": 0.15,
+      "calibration": 0.05,
+      "quiniela_reward": 0.10
+    }
+  },
+  "tuning": {
+    "objective": "guarded_ev_points",
+    "max_trials": 24,
+    "guardrails": {
+      "min_matrix_outcome_accuracy": 0.53,
+      "min_ev_outcome_accuracy": 0.53,
+      "matrix_outcome_bonus": 0.35,
+      "exact_bonus": 0.15,
+      "outcome_penalty": 3.0
+    },
+    "search_space": {
+      "training.learning_rate": [0.0005, 0.001, 0.0015],
+      "training.weight_decay": [0.00005, 0.0001, 0.0003],
+      "training.dropout": [0.15, 0.25, 0.35],
+      "training.hidden_dim": [160, 224],
+      "training.team_embedding_dim": [16, 24, 32],
+      "training.loss_weights.quiniela_reward": [0.05, 0.10, 0.18],
+      "training.loss_weights.scoreline": [0.35, 0.45, 0.55]
+    }
+  },
+  "features": {
+    "recent_windows": [5, 10],
+    "min_matches_for_form": 3,
+    "use_model_priors": false
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "artifact_dir": "data\\models\\neural_hybrid_v2\\latest",
+  "created_at_utc": "2026-06-07T14:54:01Z",
+  "cutoff_strategy": "previous_day",
+  "device": "cuda",
+  "final": {
+    "best_epoch": 2,
+    "ev_exact_accuracy": 0.1273807085807905,
+    "ev_mean_points": 1.2795412656154004,
+    "ev_outcome_accuracy": 0.5615400368625845,
+    "exact_accuracy": 0.13004300634855623,
+    "loss": 1.3195083163298718,
+    "matrix_outcome_accuracy": 0.5887773909481876,
+    "outcome_accuracy": 0.5889821830841696,
+    "outcome_temperature": 1.179676,
+    "scoreline_temperature": 1.027684,
+    "top_mean_points": 1.283432316199058,
+    "train_examples": 43944,
+    "valid_examples": 4883
+  },
+  "folds": [
+    {
+      "best_epoch": 4,
+      "ev_exact_accuracy": 0.140625,
+      "ev_mean_points": 1.515625,
+      "ev_outcome_accuracy": 0.578125,
+      "exact_accuracy": 0.15625,
+      "loss": 1.3400486707687378,
+      "matrix_outcome_accuracy": 0.59375,
+      "outcome_accuracy": 0.578125,
+      "outcome_temperature": 1.215418,
+      "scoreline_temperature": 1.034051,
+      "status": "ok",
+      "top_mean_points": 1.46875,
+      "train_examples": 40858,
+      "valid_examples": 64,
+      "year": 2018
+    },
+    {
+      "best_epoch": 4,
+      "ev_exact_accuracy": 0.09375,
+      "ev_mean_points": 1.3125,
+      "ev_outcome_accuracy": 0.5625,
+      "exact_accuracy": 0.125,
+      "loss": 1.3720306158065796,
+      "matrix_outcome_accuracy": 0.578125,
+      "outcome_accuracy": 0.578125,
+      "outcome_temperature": 1.085346,
+      "scoreline_temperature": 1.200904,
+      "status": "ok",
+      "top_mean_points": 1.484375,
+      "train_examples": 44366,
+      "valid_examples": 64,
+      "year": 2022
+    }
+  ],
+  "model_id": "neural_hybrid_v2",
+  "model_version": "0.1.0"
+}

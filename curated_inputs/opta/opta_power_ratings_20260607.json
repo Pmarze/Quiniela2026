@@ -1,0 +1,180 @@
+{
+  "metadata": {
+    "as_of_utc": "2026-06-07T00:00:00Z",
+    "source_name": "Opta Analyst public articles",
+    "source_urls": [
+      "https://theanalyst.com/articles/world-cup-groups-2026-easiest-hardest-opta-power-rankings",
+      "https://theanalyst.com/articles/world-cup-2026-group-a-predictions-preview",
+      "https://theanalyst.com/articles/who-will-win-2026-fifa-world-cup-predictions-opta-supercomputer"
+    ],
+    "notes": "Public Opta pages expose selected exact Power Ratings, selected ranks, Group A advancement probabilities and top tournament winner probabilities. Missing teams intentionally fall back to the internal Elo layer in opta_power_poisson."
+  },
+  "teams": [
+    {
+      "team": "Spain",
+      "opta_power_rank": 1,
+      "opta_power_rating": 100.0
+    },
+    {
+      "team": "France",
+      "opta_power_rank": 2,
+      "opta_power_rating": 98.6
+    },
+    {
+      "team": "Colombia",
+      "opta_power_rank": 6
+    },
+    {
+      "team": "Portugal",
+      "opta_power_rank": 9
+    },
+    {
+      "team": "Switzerland",
+      "opta_power_rank": 17
+    },
+    {
+      "team": "Turkey",
+      "opta_power_rank": 20
+    },
+    {
+      "team": "Senegal",
+      "opta_power_rank": 21
+    },
+    {
+      "team": "Mexico",
+      "opta_power_rank": 24
+    },
+    {
+      "team": "Norway",
+      "opta_power_rank": 25
+    },
+    {
+      "team": "Australia",
+      "opta_power_rank": 28
+    },
+    {
+      "team": "Paraguay",
+      "opta_power_rank": 30
+    },
+    {
+      "team": "South Korea",
+      "opta_power_rank": 32
+    },
+    {
+      "team": "United States",
+      "opta_power_rank": 36
+    },
+    {
+      "team": "Canada",
+      "opta_power_rank": 37
+    },
+    {
+      "team": "Czech Republic",
+      "opta_power_rank": 40
+    },
+    {
+      "team": "Iraq",
+      "opta_power_rank": 62
+    },
+    {
+      "team": "South Africa",
+      "opta_power_rank": 64
+    },
+    {
+      "team": "Bosnia and Herzegovina",
+      "opta_power_rank": 77
+    },
+    {
+      "team": "Qatar",
+      "opta_power_rank": 80
+    },
+    {
+      "team": "Brazil",
+      "opta_power_rating": 92.2
+    },
+    {
+      "team": "Germany",
+      "opta_power_rating": 89.6
+    },
+    {
+      "team": "Haiti",
+      "opta_power_rank": 92,
+      "opta_power_rating": 57.1
+    },
+    {
+      "team": "Curacao",
+      "opta_power_rank": 131,
+      "opta_power_rating": 49.5
+    }
+  ],
+  "group_advancement_probabilities": [
+    {
+      "team": "Mexico",
+      "group": "A",
+      "win_group": 0.48,
+      "advance_r32": 0.872,
+      "quarter_final": 0.235,
+      "winner": 0.009
+    },
+    {
+      "team": "South Korea",
+      "group": "A",
+      "win_group": 0.224,
+      "advance_r32": 0.701
+    },
+    {
+      "team": "Czech Republic",
+      "group": "A",
+      "win_group": 0.184,
+      "advance_r32": 0.642
+    },
+    {
+      "team": "South Africa",
+      "group": "A",
+      "advance_r32": 0.489
+    }
+  ],
+  "tournament_win_probabilities": [
+    {
+      "team": "Spain",
+      "winner": 0.161,
+      "quarter_final": 0.521,
+      "semi_final": 0.39,
+      "final": 0.256,
+      "win_group": 0.753
+    },
+    {
+      "team": "France",
+      "winner": 0.13,
+      "quarter_final": 0.479,
+      "final": 0.213,
+      "win_group": 0.603
+    },
+    {
+      "team": "England",
+      "winner": 0.112,
+      "quarter_final": 0.477,
+      "win_group": 0.679
+    },
+    {
+      "team": "Argentina",
+      "winner": 0.104,
+      "final": 0.181,
+      "win_group": 0.73
+    },
+    {
+      "team": "Portugal",
+      "winner": 0.07,
+      "semi_final": 0.239
+    },
+    {
+      "team": "Brazil",
+      "winner": 0.066,
+      "win_group": 0.604
+    },
+    {
+      "team": "Germany",
+      "winner": 0.051
+    }
+  ]
+}

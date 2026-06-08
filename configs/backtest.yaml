@@ -1,0 +1,19 @@
+{
+  "backtest_id_prefix": "wc2018_2022_base",
+  "world_cup_years": [2018, 2022],
+  "cutoff_strategy": "match_date_exclusive",
+  "use_active_models": true,
+  "include_models": [],
+  "exclude_models": ["market_calibrated_poisson", "opta_power_poisson"],
+  "reference_models": [
+    "neural_scoreline_mlp",
+    "neural_hybrid_v2",
+    "opta_power_poisson",
+    "weighted_ensemble",
+    "weighted_points_ensemble",
+    "weighted_1x2_ensemble",
+    "weighted_exact_ensemble",
+    "calibrated_scoreline_ensemble"
+  ],
+  "notes": "Backtest base walk-forward: cada fecha usa solo partidos historicos con match_date anterior. Los modelos neuronales con artefacto final y el weighted_ensemble que los consume se incluyen como referencia visual, no como validacion limpia. opta_power_poisson queda excluido por defecto porque usa priors publicos 2026; debe evaluarse dia a dia durante el torneo o con ratings Opta historicos archivados por fecha."
+}

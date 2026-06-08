@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "bytes": 10977,
+      "path": "metadata.json",
+      "sha256": "b132acf5cb863abe730a72c4bfe734645aa9d5c3d9e9df27cd461c23e0bd0fe0"
+    },
+    {
+      "bytes": 491,
+      "path": "metrics.json",
+      "sha256": "4f658557d08515d468346eca0a4a6ee9ae8a5925c05ce19dd5cab1bcd6f9afd2"
+    },
+    {
+      "bytes": 584,
+      "path": "metrics_live.json",
+      "sha256": "da8ec39098d720e55d61f68932ba5dc9842c86c29351200e4bb47ac2621e5c67"
+    },
+    {
+      "bytes": 482701,
+      "path": "model.pt",
+      "sha256": "7b32af3daa9f982d58302cd96c7dd0307e1202bef2e84cb04fc4af0e24bc6bdf"
+    },
+    {
+      "bytes": 4610,
+      "path": "training_log.csv",
+      "sha256": "57bc10e740d9e0228387748f0511802590ceb29af94d82cde9ab84e7046a02c3"
+    },
+    {
+      "bytes": 1779,
+      "path": "training_summary.json",
+      "sha256": "e0ef8048f1e2b51be90194404ad1a155002628e15da136ac0f1aff5c3c3d6838"
+    }
+  ],
+  "model_id": "neural_scoreline_mlp",
+  "notes": "Modelo neural scoreline base compartido; entrenamientos/folds completos permanecen locales.",
+  "published_at_utc": "2026-06-08T23:08:23Z",
+  "source_dir": "D:\\Quiniela2026\\data\\models\\neural_scoreline\\latest",
+  "version": "v2026-06-07"
+}

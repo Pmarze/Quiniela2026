@@ -1,0 +1,81 @@
+{
+  "artifacts": [
+    {
+      "path": "data/quiniela.db",
+      "type": "local_database",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/bootstrap_data.py --preset base"
+      ],
+      "notes": "SQLite local generado desde fuentes descargables y pipelines del proyecto."
+    },
+    {
+      "path": "data/raw/snapshots",
+      "type": "downloaded_worldcup_2026_snapshots",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/download_data.py"
+      ],
+      "sources_config": "configs/sources.json"
+    },
+    {
+      "path": "data/raw/history",
+      "type": "downloaded_training_history",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/build_history.py"
+      ],
+      "sources_config": "configs/history_sources.json"
+    },
+    {
+      "path": "data/state",
+      "type": "generated_tournament_state",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/run_daily.py --skip-download --skip-dashboard"
+      ]
+    },
+    {
+      "path": "data/backtests",
+      "type": "generated_validation_runs",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/run_backtest.py",
+        "python scripts/optimize_ensemble_weights.py --iterations 8000"
+      ]
+    },
+    {
+      "path": "data/predictions",
+      "type": "generated_prediction_runs",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/run_model.py"
+      ]
+    },
+    {
+      "path": "outputs",
+      "type": "generated_dashboards",
+      "versioned": false,
+      "rebuild": [
+        "python scripts/generate_dashboard.py",
+        "python scripts/generate_validation_dashboard.py"
+      ]
+    },
+    {
+      "path": "curated_inputs/opta",
+      "type": "curated_external_reference",
+      "versioned": true,
+      "rebuild": [],
+      "notes": "Archivo curado desde articulos publicos de Opta. Se versiona porque es pequeno y necesario para reproducir opta_power_poisson."
+    },
+    {
+      "path": "model_registry",
+      "type": "published_trained_models",
+      "versioned": true,
+      "publish": [
+        "python scripts/publish_model.py --model-id MODEL_ID --version VERSION --source-dir LOCAL_ARTIFACT_DIR"
+      ],
+      "notes": "Solo modelos finales y metricas asociadas. Los entrenamientos completos permanecen locales."
+    }
+  ]
+}

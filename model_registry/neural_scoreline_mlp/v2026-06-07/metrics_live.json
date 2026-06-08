@@ -1,0 +1,19 @@
+{
+  "best_loss": 1.729663330268938,
+  "epoch": 22,
+  "ev_exact_accuracy": 0.12758550071677247,
+  "ev_mean_points": 1.3061642432930576,
+  "ev_outcome_accuracy": 0.566455048126152,
+  "exact_accuracy": 0.12533278722097072,
+  "loss": 1.7599981018150779,
+  "matrix_outcome_accuracy": 0.584681548228548,
+  "max_epochs": 120,
+  "outcome_accuracy": 0.5883678066762237,
+  "patience": 14,
+  "run_label": "final",
+  "seconds": 3.329,
+  "stale_epochs": 14,
+  "top_mean_points": 1.2858898218308417,
+  "train_loss": 1.6587590084643653,
+  "updated_at_utc": "2026-06-07T03:10:17Z"
+}

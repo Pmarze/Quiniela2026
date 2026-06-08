@@ -1,0 +1,89 @@
+# Quiniela2026
+
+Proyecto privado para estimar pronosticos de quiniela del Mundial 2026 con modelos modulares de goles, backtesting historico, simulacion Monte Carlo, redes neuronales y tableros locales.
+
+El contexto general vive en [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md). La documentacion tecnica vive en [docs/](docs/), y las decisiones incrementales en [docs/knowledge/000_index.md](docs/knowledge/000_index.md).
+
+Para trabajar con Codex desde otro equipo, usar primero [AGENTS.md](AGENTS.md) y [docs/collaborator_onboarding.md](docs/collaborator_onboarding.md).
+
+## Estado Actual
+
+Implementado:
+
+- Ingesta y canonicalizacion de datos.
+- Capa historica para entrenamiento y backtesting.
+- Estado del torneo con cortes diarios.
+- Modelos Poisson/Elo, empates, Monte Carlo, Opta externo y redes neuronales.
+- Ensambles ponderados con optimizacion por backtest 2018/2022.
+- Dashboard local de seguimiento del torneo.
+- Dashboard local de validacion historica.
+
+Modelo de quiniela activo por defecto:
+
+```text
+weighted_points_ensemble
+```
+
+## Runtime
+
+Crear el entorno de Anaconda:
+
+```powershell
+conda env create -f environment.yml
+conda activate quiniela2026
+git lfs pull
+```
+
+Desde la carpeta del proyecto, con el entorno ya activado:
+
+```powershell
+python scripts\bootstrap_data.py --preset base
+python scripts\build_history.py
+python scripts\run_backtest.py
+python scripts\optimize_ensemble_weights.py --iterations 8000
+python scripts\run_model.py
+python scripts\generate_dashboard.py
+python scripts\generate_validation_dashboard.py
+```
+
+## Dashboards
+
+Los HTML generados se guardan localmente en:
+
+```text
+outputs/dashboard/index.html
+outputs/validation_dashboard/index.html
+```
+
+## Datos y Artefactos
+
+El repositorio versiona codigo, configuracion, documentacion y modelos finales publicados. Los datos descargables, corridas de entrenamiento, backtests, predicciones y dashboards generados se quedan locales y se reconstruyen con scripts.
+
+Se comparte:
+
+- `model_registry/`: modelos finales publicados y metricas asociadas.
+- `configs/data_artifacts.json`: manifiesto de artefactos reconstruibles.
+- `scripts/bootstrap_data.py`: reconstruccion de datos locales.
+- `scripts/publish_model.py`: publicacion controlada de modelos entrenados.
+
+No se comparte `data/` ni `outputs/` salvo `.gitkeep`. Ver [docs/repository_setup.md](docs/repository_setup.md).
+
+## Documentos Principales
+
+- [Instrucciones para Codex](AGENTS.md)
+- [Guia para colaborar desde cero](docs/collaborator_onboarding.md)
+- [Preparacion del repositorio privado](docs/repository_setup.md)
+- [Plan de implementacion](docs/implementation_plan.md)
+- [Arquitectura](docs/architecture.md)
+- [Workflow diario y actualizaciones](docs/daily_update_workflow.md)
+- [Almacenamiento de datos](docs/data_storage.md)
+- [Canonicalizacion y reconciliacion](docs/canonicalization.md)
+- [Capa historica para modelos](docs/history_layer.md)
+- [Runtime Python](docs/runtime.md)
+- [Conocimientos incrementales](docs/knowledge/000_index.md)
+- [Estado del torneo](docs/tournament_state.md)
+- [Dashboard local](docs/ui_dashboard.md)
+- [Contrato de modelos](docs/model_contract.md)
+- [Fuentes de datos](docs/data_sources.md)
+- [Metricas de evaluacion](docs/evaluation_metrics.md)
+- [Workflow de notebooks](docs/notebook_workflow.md)

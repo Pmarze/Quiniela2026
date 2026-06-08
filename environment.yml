@@ -1,0 +1,10 @@
+name: quiniela2026
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy>=1.26
+  - pytorch>=2.3
+  - pip

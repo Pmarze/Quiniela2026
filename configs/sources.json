@@ -1,0 +1,71 @@
+{
+  "sources": [
+    {
+      "source_name": "worldcup26_ir",
+      "kind": "json_api",
+      "enabled": true,
+      "resources": [
+        {
+          "resource_name": "games",
+          "url": "https://worldcup26.ir/get/games",
+          "normalizer": "worldcup26_games"
+        },
+        {
+          "resource_name": "teams",
+          "url": "https://worldcup26.ir/get/teams",
+          "normalizer": "worldcup26_teams"
+        },
+        {
+          "resource_name": "groups",
+          "url": "https://worldcup26.ir/get/groups",
+          "normalizer": "worldcup26_groups"
+        },
+        {
+          "resource_name": "stadiums",
+          "url": "https://worldcup26.ir/get/stadiums",
+          "normalizer": "worldcup26_stadiums"
+        }
+      ]
+    },
+    {
+      "source_name": "openfootball_worldcup_json",
+      "kind": "json_static",
+      "enabled": true,
+      "resources": [
+        {
+          "resource_name": "worldcup_2026",
+          "url": "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json",
+          "normalizer": "openfootball_worldcup_2026"
+        }
+      ]
+    },
+    {
+      "source_name": "rezarahiminia_static_csv",
+      "kind": "csv_static",
+      "enabled": true,
+      "resources": [
+        {
+          "resource_name": "games_csv",
+          "url": "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/worldcup2026.games.csv",
+          "normalizer": "worldcup26_games_csv"
+        },
+        {
+          "resource_name": "teams_csv",
+          "url": "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/worldcup2026.teams.csv",
+          "normalizer": "worldcup26_teams_csv"
+        },
+        {
+          "resource_name": "groups_csv",
+          "url": "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/worldcup2026.groups.csv",
+          "normalizer": "worldcup26_groups_csv"
+        },
+        {
+          "resource_name": "stadiums_csv",
+          "url": "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/worldcup2026.stadia.csv",
+          "normalizer": "worldcup26_stadiums_csv"
+        }
+      ]
+    }
+  ]
+}
+

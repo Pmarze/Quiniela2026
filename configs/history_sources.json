@@ -1,0 +1,105 @@
+{
+  "history_sources": [
+    {
+      "source_id": "martj42_international_results",
+      "priority": 1,
+      "role": "primary_training_history",
+      "enabled": true,
+      "ingest_enabled": true,
+      "access_mode": "public_github_raw",
+      "license": "CC0-1.0",
+      "urls": {
+        "repository": "https://github.com/martj42/international_results",
+        "kaggle": "https://www.kaggle.com/datasets/martj42/international-football-results-from-1872-to-2017",
+        "results_csv": "https://raw.githubusercontent.com/martj42/international_results/master/results.csv",
+        "shootouts_csv": "https://raw.githubusercontent.com/martj42/international_results/master/shootouts.csv",
+        "goalscorers_csv": "https://raw.githubusercontent.com/martj42/international_results/master/goalscorers.csv",
+        "former_names_csv": "https://raw.githubusercontent.com/martj42/international_results/master/former_names.csv"
+      },
+      "notes": "Base principal para Elo, Poisson y features de forma. Usar GitHub raw evita credenciales de Kaggle."
+    },
+    {
+      "source_id": "hicruben_wc2026_prediction_model",
+      "priority": 2,
+      "role": "recent_results_and_methodology_reference",
+      "enabled": true,
+      "ingest_enabled": false,
+      "access_mode": "public_github",
+      "license": "MIT",
+      "urls": {
+        "repository": "https://github.com/Hicruben/world-cup-2026-prediction-model"
+      },
+      "notes": "Referencia directa para Elo + Dixon-Coles + Monte Carlo y backtest reciente 2023-2026."
+    },
+    {
+      "source_id": "fjelstul_worldcup",
+      "priority": 3,
+      "role": "world_cup_context_enrichment",
+      "enabled": true,
+      "ingest_enabled": false,
+      "access_mode": "public_github",
+      "license": "CC-BY-SA-4.0",
+      "urls": {
+        "repository": "https://github.com/jfjelstul/worldcup",
+        "data_csv": "https://github.com/jfjelstul/worldcup/tree/master/data-csv",
+        "data_json": "https://github.com/jfjelstul/worldcup/tree/master/data-json",
+        "data_sqlite": "https://github.com/jfjelstul/worldcup/tree/master/data-sqlite"
+      },
+      "notes": "Excelente para features y validacion de Mundiales, no suficiente como unico historico de selecciones."
+    },
+    {
+      "source_id": "currybon30_fifa_wc_2026_datacamp",
+      "priority": 4,
+      "role": "methodology_reference",
+      "enabled": false,
+      "ingest_enabled": false,
+      "access_mode": "public_github",
+      "license": "AGPL-3.0",
+      "urls": {
+        "repository": "https://github.com/Currybon30/fifa_wc_2026_datacamp"
+      },
+      "notes": "Referencia de pipelines ML/Elo/Monte Carlo. No usar codigo directamente sin revisar implicaciones AGPL."
+    },
+    {
+      "source_id": "ehteshambah00_wc_analysis",
+      "priority": 5,
+      "role": "methodology_reference",
+      "enabled": false,
+      "ingest_enabled": false,
+      "access_mode": "public_github",
+      "license": "unknown",
+      "urls": {
+        "repository": "https://github.com/EhteshamBahoo/Fifa-WorldCup-Data-Analysis-1930-2026"
+      },
+      "notes": "Referencia pedagogica; datos via scraping/Wikipedia y notebooks. No usar como fuente canonica."
+    },
+    {
+      "source_id": "api_football",
+      "priority": 6,
+      "role": "paid_or_keyed_live_and_stats_enrichment",
+      "enabled": false,
+      "ingest_enabled": false,
+      "access_mode": "api_key",
+      "license": "commercial_terms",
+      "urls": {
+        "home": "https://www.api-football.com/",
+        "documentation": "https://www.api-football.com/documentation-v3"
+      },
+      "notes": "Candidato para automatizar stats, lineups, odds y eventos si se acepta usar API key/cuotas."
+    },
+    {
+      "source_id": "the_odds_api",
+      "priority": 7,
+      "role": "market_calibration",
+      "enabled": false,
+      "ingest_enabled": false,
+      "access_mode": "api_key",
+      "license": "commercial_terms",
+      "urls": {
+        "home": "https://the-odds-api.com/",
+        "documentation": "https://the-odds-api.com/liveapi/guides/v4/"
+      },
+      "notes": "No es base para goles historicos; es capa de calibracion de probabilidades/mercado."
+    }
+  ]
+}

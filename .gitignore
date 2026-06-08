@@ -1,0 +1,108 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and local config
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+*.local
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs, caches and temporary working files
+logs/
+log/
+tmp/
+temp/
+cache/
+scratch/
+*.log
+
+# Local assistant/tool settings
+.claude/settings.local.json
+
+# Local/generated data. Rebuild with scripts/bootstrap_data.py.
+data/*
+!data/.gitkeep
+!data/backtests/
+data/backtests/*
+!data/backtests/.gitkeep
+!data/external/
+data/external/*
+!data/external/.gitkeep
+!data/models/
+data/models/*
+!data/models/.gitkeep
+!data/models_local/
+data/models_local/*
+!data/models_local/.gitkeep
+!data/predictions/
+data/predictions/*
+!data/predictions/.gitkeep
+!data/raw/
+data/raw/*
+!data/raw/.gitkeep
+!data/state/
+data/state/*
+!data/state/.gitkeep
+!data/ui/
+data/ui/*
+!data/ui/.gitkeep
+
+# Generated dashboards and reports. Rebuild with scripts/generate_*.py.
+outputs/*
+!outputs/.gitkeep
+!outputs/dashboard/
+outputs/dashboard/*
+!outputs/dashboard/.gitkeep
+!outputs/validation_dashboard/
+outputs/validation_dashboard/*
+!outputs/validation_dashboard/.gitkeep
+
+# Model registry is shared intentionally.
+!model_registry/
+!model_registry/**
+
+# Heavy local ML artifacts outside the registry
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+!model_registry/**/*.pt
+!model_registry/**/*.pth
+!model_registry/**/*.ckpt
+
+# Large/generated tabular artifacts outside model registry
+*.parquet
+*.feather
+*.arrow
+*.h5
+*.hdf5
+
+# Databases stay local and rebuildable
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
