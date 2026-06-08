@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default=str(PROJECT_ROOT / "outputs" / "dashboard" / "index.html"),
+        default=str(PROJECT_ROOT / "docs" / "index.html"),
         help="Ruta del HTML generado.",
     )
     parser.add_argument(

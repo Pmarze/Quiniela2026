@@ -70,6 +70,9 @@ outputs/dashboard/*
 outputs/validation_dashboard/*
 !outputs/validation_dashboard/.gitkeep
 
+# docs/index.html es el dashboard publicado en GitHub Pages — siempre incluir.
+!docs/index.html
+
 # Model registry is shared intentionally.
 !model_registry/
 !model_registry/**
