@@ -791,7 +791,7 @@ function buildHeatmapChart(m, models){
     '<div class="chart-title">Heatmap de Consenso de Marcadores</div>'+
     '<div class="heat-nav">'+
       '<button class="heat-arrow" onclick="heatFlip(this)">&#8592;</button>'+
-      '<span class="heat-nav-title">Max Puntos</span>'+
+      '<span class="heat-nav-title">Marcador para maximizar quiniela</span>'+
       '<button class="heat-arrow" onclick="heatFlip(this)">&#8594;</button>'+
     '</div>'+
     '<div class="heat-page">'+buildHeatGrid(m, models, 'score')+'</div>'+
@@ -802,7 +802,7 @@ function heatFlip(btn){
   var card = btn.closest('.chart-card');
   var pages = card.querySelectorAll('.heat-page');
   var title = card.querySelector('.heat-nav-title');
-  var labels = ['Max Puntos','Más Probable'];
+  var labels = ['Marcador para maximizar quiniela','Marcador más probable'];
   var cur = 0;
   pages.forEach(function(p,i){ if(!p.classList.contains('heat-hidden')) cur = i; });
   pages.forEach(function(p){ p.classList.add('heat-hidden'); });
@@ -960,8 +960,8 @@ function showHover(matchId, triggerEl){
     cards += '<span class="fb '+mod.fb+'" style="font-size:8px">'+mod.family+'</span>';
     cards += '</div>';
     cards += '<div class="hp-mc-sc">';
-    cards += '<div class="hp-mc-cell"><div class="hp-mc-cl">Más Prob.</div><div class="hp-mc-cv prob">'+mod.top+'</div></div>';
-    cards += '<div class="hp-mc-cell"><div class="hp-mc-cl">Max Pts.</div><div class="hp-mc-cv max">'+mod.score+'</div></div>';
+    cards += '<div class="hp-mc-cell"><div class="hp-mc-cl">Marcador más probable</div><div class="hp-mc-cv prob">'+mod.top+'</div></div>';
+    cards += '<div class="hp-mc-cell"><div class="hp-mc-cl">Marcador para maximizar quiniela</div><div class="hp-mc-cv max">'+mod.score+'</div></div>';
     cards += '</div>';
     cards += '<div class="hp-mc-stats">xG: '+mod.xg+' · '+mod.out+' '+pct(mod.conf)+' · EV: '+mod.ev.toFixed(3)+eff+'</div>';
     if(mod.notes) cards += '<div class="hp-mc-note" title="'+esc(mod.notes)+'">'+esc(mod.notes.split('\n')[0])+'</div>';
