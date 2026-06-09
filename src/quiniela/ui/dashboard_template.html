@@ -148,6 +148,10 @@ main{margin-top:var(--navh);}
 .hp-hd{background:var(--nav);padding:11px 15px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;}
 .hp-title{font-family:var(--fc);font-size:18px;font-weight:700;color:white;margin-bottom:2px;}
 .hp-sub{font-size:11px;color:rgba(255,255,255,.50);}
+.nav-btn{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:white;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;}
+.nav-btn:hover:not(:disabled){background:rgba(255,255,255,.22);}
+.nav-btn:disabled{opacity:.25;cursor:default;}
+.hp-nav-group{display:flex;align-items:center;gap:5px;flex-shrink:0;}
 .hp-close{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:white;width:26px;height:26px;
   border-radius:50%;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;margin-left:12px;transition:background .12s;}
@@ -501,16 +505,15 @@ main{margin-top:var(--navh);}
 <div id="hover-panel">
   <div class="hp-hd">
     <div><div class="hp-title" id="hp-title">—</div><div class="hp-sub" id="hp-sub">—</div></div>
-    <button class="hp-close" onclick="closeHover()">✕</button>
+    <div class="hp-nav-group">
+      <button class="nav-btn" id="hp-nav-prev" onclick="navigateHover(-1)" title="Partido anterior">&#8249;</button>
+      <button class="nav-btn" id="hp-nav-next" onclick="navigateHover(1)" title="Partido siguiente">&#8250;</button>
+      <button class="hp-close" onclick="closeHover()">✕</button>
+    </div>
   </div>
   <div class="hp-q">
     <div><div class="hp-ql">Quiniela (Modelo)</div><div class="hp-qs" id="hp-score">—</div></div>
     <div class="hp-qm" id="hp-qmeta"></div>
-    <div class="hp-mypick">
-      <div class="hp-ql">Mi Pick</div>
-      <input class="hp-pick-input" id="hp-pick-input" maxlength="7" placeholder="X-X"
-             oninput="savePickFromHover(this.value)" onclick="this.select()" autocomplete="off">
-    </div>
   </div>
   <div class="hp-body">
     <div class="sheet-nav">
@@ -528,7 +531,11 @@ main{margin-top:var(--navh);}
   <div class="modal">
     <div class="m-hd">
       <div><div class="m-title" id="m-title">—</div><div class="m-sub" id="m-sub">—</div></div>
-      <button class="m-close" onclick="closeModal()">✕</button>
+      <div class="hp-nav-group">
+        <button class="nav-btn" id="m-nav-prev" onclick="navigateModal(-1)" title="Partido anterior">&#8249;</button>
+        <button class="nav-btn" id="m-nav-next" onclick="navigateModal(1)" title="Partido siguiente">&#8250;</button>
+        <button class="m-close" onclick="closeModal()">✕</button>
+      </div>
     </div>
     <div class="m-body">
       <div class="m-ibox" id="m-ibox"></div>
@@ -856,41 +863,27 @@ function buildProbabilityChart(m, models){
   return html;
 }
 
-/* ══════════════════ MI PICK (localStorage) ══════════════════ */
-var PKEY = 'q2026_picks';
-function loadPicks(){ try{ return JSON.parse(localStorage.getItem(PKEY)||'{}'); }catch(e){ return {}; } }
-function savePick(matchId, score){
-  var p = loadPicks();
-  if(score && score.trim()) p[matchId] = score.trim();
-  else delete p[matchId];
-  localStorage.setItem(PKEY, JSON.stringify(p));
-  refreshPick(matchId);
-}
-function getPick(matchId){ return loadPicks()[matchId]||''; }
+/* ══════════════════ NAVEGACIÓN ENTRE PARTIDOS ══════════════════ */
 var _hoverMid = null, _modalMid = null;
-function savePickFromHover(v){ if(_hoverMid) savePick(_hoverMid, v); }
-function savePickFromModal(v){ if(_modalMid) savePick(_modalMid, v); }
-function refreshPick(matchId){
-  var pick = getPick(matchId);
-  var hinp = document.getElementById('hp-pick-input');
-  if(hinp && _hoverMid === matchId) hinp.value = pick;
-  var minp = document.getElementById('m-pick-input');
-  if(minp && _modalMid === matchId) minp.value = pick;
-  var badge = document.getElementById('mypick-'+matchId);
-  if(badge){ badge.textContent = pick; badge.style.display = pick ? 'inline' : 'none'; }
-  updatePickCmp(matchId);
+function _matchIndex(mid){ return DATA.matches.findIndex(function(m){ return m.id===mid; }); }
+function _updateNavBtns(mid, prevId, nextId){
+  var idx = _matchIndex(mid);
+  var prev = document.getElementById(prevId);
+  var next = document.getElementById(nextId);
+  if(prev) prev.disabled = idx <= 0;
+  if(next) next.disabled = idx >= DATA.matches.length - 1;
 }
-function updatePickCmp(matchId){
-  var el = document.getElementById('m-pick-cmp');
-  if(!el) return;
-  var m = matchById(matchId);
-  var pick = getPick(matchId);
-  if(!pick || !m){ el.textContent=''; return; }
-  var bq = bestQuiniela(m);
-  if(pick === bq.score)
-    el.innerHTML = '<span style="color:rgba(255,255,255,.9)">✓ Coincide con el modelo ('+bq.score+')</span>';
-  else
-    el.innerHTML = '<span style="color:var(--gold)">Modelo recomienda <strong>'+bq.score+'</strong> · Top: '+bq.top+'</span>';
+function navigateHover(delta){
+  var idx = _matchIndex(_hoverMid);
+  if(idx < 0) return;
+  var next = DATA.matches[idx + delta];
+  if(next) showHover(next.id, null);
+}
+function navigateModal(delta){
+  var idx = _matchIndex(_modalMid);
+  if(idx < 0) return;
+  var next = DATA.matches[idx + delta];
+  if(next) openModal(next.id);
 }
 
 /* ══════════════════ NAVIGATION ══════════════════ */
@@ -945,7 +938,7 @@ function showHover(matchId, triggerEl){
     'Top: '+bq.top+' ('+pct(bq.prob)+')<br>'+
     'Modelo: '+modelDisplayName(bq.model)+
     (m.frozen ? '<br><span style="opacity:.9">🔒 Congelado</span>' : '');
-  document.getElementById('hp-pick-input').value = getPick(matchId);
+  _updateNavBtns(_hoverMid, 'hp-nav-prev', 'hp-nav-next');
   document.getElementById('hp-stats-sheet').innerHTML = buildStatsSheet(m);
 
   var sorted = sortedModels(m.models);
@@ -974,6 +967,7 @@ function showHover(matchId, triggerEl){
 }
 
 function posHover(el){
+  if(!el) return;
   var panel = document.getElementById('hover-panel');
   var rect = el.getBoundingClientRect();
   var pw = Math.min(920, window.innerWidth - 20);
@@ -1004,7 +998,6 @@ function openModal(matchId){
     '<div class="m-ib"><div class="m-ib-l">Estado</div><div class="m-ib-v"><span class="sbadge '+sCls(m.status)+'">'+sLabel(m.status)+'</span></div></div>'+
     '<div class="m-ib"><div class="m-ib-l">Sede</div><div class="m-ib-v">'+esc(m.venue)+'</div></div>'+
     '<div class="m-ib"><div class="m-ib-l">Grupo / Ronda</div><div class="m-ib-v">'+m.group+'</div></div>';
-  var myPick = getPick(matchId);
   var bq = bestQuiniela(m);
   document.getElementById('m-qpan').innerHTML =
     '<div class="m-qt">Quiniela (Modelo)</div>'+
@@ -1012,14 +1005,8 @@ function openModal(matchId){
     '<div class="m-qd"><strong>EV: '+bq.ev.toFixed(6)+'</strong>'+
     'Top: '+bq.top+' ('+pct(bq.prob)+')<br>'+
     'Modelo: '+modelDisplayName(bq.model)+'<br>'+
-    'Congelado: '+(m.frozen ? 'sí 🔒' : 'no')+'</div>'+
-    '<div class="m-pick-row">'+
-    '<div class="m-pick-label">Mi Pick</div>'+
-    '<input class="m-pick-input" id="m-pick-input" maxlength="7" placeholder="X-X" value="'+esc(myPick)+'"'+
-    ' oninput="savePickFromModal(this.value)" onclick="this.select()" autocomplete="off">'+
-    '<div class="m-pick-cmp" id="m-pick-cmp"></div>'+
-    '</div>';
-  setTimeout(function(){ updatePickCmp(matchId); }, 0);
+    'Congelado: '+(m.frozen ? 'sí 🔒' : 'no')+'</div>';
+  _updateNavBtns(_modalMid, 'm-nav-prev', 'm-nav-next');
   document.getElementById('m-stats-sheet').innerHTML = buildStatsSheet(m);
   var sorted = sortedModels(m.models);
   var rows = '';
@@ -1359,7 +1346,7 @@ function renderHome(){
     '<div style="display:grid;grid-template-columns:repeat(2,1fr)">'+mListHTML+'</div>'+
     '<div style="padding:6px 10px;background:var(--pan2);border-top:1px solid var(--brd);font-size:9px;color:var(--mutl);display:flex;align-items:center;justify-content:space-between">'+
     '<span>Hover → modelos · Click → detalle completo</span>'+
-    '<span><span style="color:var(--teal);font-weight:700">■</span> Modelo &nbsp;<span style="color:var(--gold);font-weight:700">■</span> Mi Pick</span>'+
+    '<span><span style="color:var(--teal);font-weight:700">■</span> Pick del modelo</span>'+
     '</div></div>'+
 
     '</div>'+
@@ -1374,7 +1361,7 @@ function renderHome(){
   startCountdown();
 }
 function renderMatchCard(m){
-  var pick = getPick(m.id);
+  var bq = bestQuiniela(m);
   return '<div class="mc" onclick="openModal('+m.id+')" onmouseenter="showHover('+m.id+',this)" onmouseleave="schedClose()">'+
     '<div class="mc-head"><span class="mc-grp">Grupo '+m.group+'</span><span class="mc-date">'+fdateFull(m.date)+' · '+m.time+'</span></div>'+
     '<div class="mc-body">'+
@@ -1387,10 +1374,9 @@ function renderMatchCard(m){
     '<span class="sbadge '+sCls(m.status)+'">'+sLabel(m.status)+'</span>'+
     '<span>'+esc(m.venue)+', '+esc(m.city)+'</span></div></div>'+
     '<div class="mc-foot">'+
-    '<span class="mc-ev">EV '+bestQuiniela(m).ev.toFixed(3)+' · Top '+bestQuiniela(m).top+'</span>'+
+    '<span class="mc-ev">EV '+bq.ev.toFixed(3)+' · Top '+bq.top+'</span>'+
     '<div class="mc-pick">'+
-    '<span class="mc-pickl">Modelo</span><span class="mc-pickv">'+bestQuiniela(m).score+'</span>'+
-    '<span class="mc-mypick" id="mypick-'+m.id+'" style="'+(pick?'display:inline':'display:none')+'">'+esc(pick)+'</span>'+
+    '<span class="mc-pickl">Modelo</span><span class="mc-pickv">'+bq.score+'</span>'+
     (m.frozen ? '<span style="font-size:13px" title="Congelado">🔒</span>' : '')+
     '</div></div></div>';
 }
