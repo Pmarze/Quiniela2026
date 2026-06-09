@@ -1297,14 +1297,12 @@ function renderHome(){
     return new Date(a.date+'T'+a.time)-new Date(b.date+'T'+b.time);
   });
   sortedM.forEach(function(m){
-    var pick = getPick(m.id);
     mListHTML +=
       '<div class="home-mrow" onclick="openModal('+m.id+')" onmouseenter="showHover('+m.id+',this)" onmouseleave="schedClose()">'+
       '<span class="home-mrow-grp">G'+m.group+'</span>'+
       '<span class="home-mrow-date">'+fdate(m.date)+'</span>'+
       '<span class="home-mrow-teams">'+esc(m.home)+' — '+esc(m.away)+'</span>'+
       '<span class="home-mrow-mod">'+bestQuiniela(m).score+'</span>'+
-      (pick ? '<span class="home-mrow-pick">'+esc(pick)+'</span>' : '')+
       '</div>';
   });
 
