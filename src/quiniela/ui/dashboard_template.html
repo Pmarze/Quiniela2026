@@ -512,7 +512,7 @@ main{margin-top:var(--navh);}
   </a>
   <button class="nlink active" id="nav-home"      onclick="showSec('home')">Inicio</button>
   <button class="nlink"        id="nav-quiniela"  onclick="showSec('quiniela')">Quiniela</button>
-  <button class="nlink"        id="nav-amigos"    onclick="showSec('amigos')">Amigos</button>
+  <button class="nlink"        id="nav-amigos"    onclick="showSec('amigos')">vs</button>
   <button class="nlink"        id="nav-sonadora"  onclick="showSec('sonadora')">Soñadora</button>
   <button class="nlink"        id="nav-guia"      onclick="showSec('guia')">Guía</button>
   <button class="nlink"        id="nav-validacion" onclick="showSec('validacion')">Validación</button>
@@ -1814,13 +1814,22 @@ function buildFriendsRank(){
 
 /* Chips de selección de modelos (reutilizado en home y en amigos) */
 function buildFrChips(){
-  var allModels = DATA.matches[0] ? DATA.matches[0].models : [];
+  var allModels = (DATA.matches[0] ? DATA.matches[0].models : []).slice();
+  var btMap = {};
+  (DATA.backtest.metrics||[]).forEach(function(bm){ btMap[bm.model]=bm.pts; });
+  allModels.sort(function(a,b){
+    var pa=btMap[a.id]!=null?btMap[a.id]:-1;
+    var pb=btMap[b.id]!=null?btMap[b.id]:-1;
+    return pb-pa;
+  });
   var selModels = getFrModels();
   return allModels.map(function(mod){
     var isSel = selModels.indexOf(mod.id)>=0;
+    var pts = btMap[mod.id];
+    var ptsBadge = pts!=null?' <span style="font-size:8px;opacity:.6">'+pts+'p</span>':'';
     return '<span class="fr-chip'+(isSel?' fr-sel-on':'')+'" onclick="toggleFrModel(\''+esc(mod.id)+'\')">'
          + '<span class="fb '+mod.fb+'" style="font-size:8px">'+esc(mod.label)+'</span>'
-         + esc(mod.id.replace(/_/g,' '))+'</span>';
+         + esc(mod.id.replace(/_/g,' '))+ptsBadge+'</span>';
   }).join('');
 }
 
