@@ -1,33 +1,43 @@
 {
-  "generated_at": "2026-06-10T05:01:10.528694Z",
+  "generated_at": "2026-06-12T06:33:44.774851Z",
   "friends": [
     {
-      "id": "pablo",
-      "name": "Pablo",
+      "id": "bi",
+      "name": "BI",
       "picks": {
-        "1": "1-0",
-        "2": "1-0",
+        "2": "2-0"
+      },
+      "source": "google_sheets"
+    },
+    {
+      "id": "ib",
+      "name": "IB",
+      "picks": {
+        "1": "2-0",
+        "2": "2-0",
         "3": "1-0",
         "4": "1-1"
       },
       "source": "google_sheets"
     },
     {
-      "id": "amigo-2",
-      "name": "Amigo 2",
-      "picks": {},
+      "id": "ib-int",
+      "name": "IB_int",
+      "picks": {
+        "1": "2-0",
+        "2": "2-0"
+      },
       "source": "google_sheets"
     },
     {
-      "id": "amigo-3",
-      "name": "Amigo 3",
-      "picks": {},
-      "source": "google_sheets"
-    },
-    {
-      "id": "amigo-4",
-      "name": "Amigo 4",
-      "picks": {},
+      "id": "donart",
+      "name": "DonArt",
+      "picks": {
+        "1": "2-0",
+        "2": "2-1",
+        "3": "1-0",
+        "4": "1-0"
+      },
       "source": "google_sheets"
     },
     {
