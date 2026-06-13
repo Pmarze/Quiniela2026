@@ -21,6 +21,7 @@ from quiniela.models import (
     run_elo_dixon_coles,
     run_elo_poisson,
     run_opta_power_poisson,
+    run_similar_match_knn_scoreline,
 )
 from quiniela.models.common import (
     ModelContext,
@@ -34,6 +35,7 @@ from quiniela.models.common import (
 )
 from quiniela.models.neural_hybrid_v2 import run_neural_hybrid_v2
 from quiniela.models.neural_scoreline_mlp import run_neural_scoreline_mlp
+from quiniela.scoring.quiniela import resolve_scoring_profile
 from quiniela.storage.sqlite_store import SQLiteStore
 
 
@@ -48,6 +50,7 @@ MODEL_RUNNERS: dict[str, Callable[[ModelContext, dict[str, Any], dict[str, Any]]
     "neural_hybrid_v2": run_neural_hybrid_v2,
     "neural_scoreline_mlp": run_neural_scoreline_mlp,
     "opta_power_poisson": run_opta_power_poisson,
+    "similar_match_knn_scoreline": run_similar_match_knn_scoreline,
 }
 
 ENSEMBLE_MODEL_IDS = {
@@ -97,10 +100,12 @@ def run_backtest(
     models_config_path: Path | None = None,
     scoring_config_path: Path | None = None,
     output_root: Path | None = None,
+    scoring_profile: str | None = None,
 ) -> BacktestResult:
     backtest_config = load_json_config(backtest_config_path or project_root / "configs" / "backtest.yaml")
     models_config = load_json_config(models_config_path or project_root / "configs" / "models.yaml")
-    scoring_config = load_json_config(scoring_config_path or project_root / "configs" / "scoring.yaml")
+    scoring_config_raw = load_json_config(scoring_config_path or project_root / "configs" / "scoring.yaml")
+    scoring_config = resolve_scoring_profile(scoring_config_raw, scoring_profile)
     years = [int(year) for year in backtest_config.get("world_cup_years", [2018, 2022])]
     model_configs = _select_model_configs(models_config, backtest_config)
     base_model_configs = [config for config in model_configs if not _is_ensemble_model(config)]

@@ -8,6 +8,7 @@ from quiniela.models.draw_specialist import run_draw_specialist
 from quiniela.models.elo_dixon_coles import run_elo_dixon_coles
 from quiniela.models.elo_poisson import run_elo_poisson
 from quiniela.models.opta_power_poisson import run_opta_power_poisson
+from quiniela.models.similar_match_knn_scoreline import run_similar_match_knn_scoreline
 
 __all__ = [
     "run_attack_defense_poisson",
@@ -18,4 +19,5 @@ __all__ = [
     "run_elo_dixon_coles",
     "run_elo_poisson",
     "run_opta_power_poisson",
+    "run_similar_match_knn_scoreline",
 ]

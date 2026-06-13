@@ -39,6 +39,7 @@ from quiniela.models.common import (
     load_json_config,
     normalize_team_name,
 )
+from quiniela.scoring.quiniela import resolve_scoring_profile
 from quiniela.storage.sqlite_store import SQLiteStore
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -79,6 +80,7 @@ def main() -> None:
     parser.add_argument("--top",     type=int, default=20)
     parser.add_argument("--device",  default="cuda")
     parser.add_argument("--output",  type=Path, default=None)
+    parser.add_argument("--scoring-profile", default=None, help="Perfil de scoring (ej: 3-1-0).")
     args = parser.parse_args()
 
     if args.model in GPU_UNSUPPORTED:
@@ -92,7 +94,7 @@ def main() -> None:
         print(f"GPU: {torch.cuda.get_device_name(0)}", flush=True)
 
     models_config  = load_json_config(PROJECT_ROOT / "configs" / "models.yaml")
-    scoring_config = load_json_config(PROJECT_ROOT / "configs" / "scoring.yaml")
+    scoring_config = resolve_scoring_profile(load_json_config(PROJECT_ROOT / "configs" / "scoring.yaml"), args.scoring_profile)
     base_model_config = next(
         (m for m in models_config.get("models", []) if m["model_id"] == args.model),
         {"model_id": args.model, "model_version": "tuning", "max_goals": 8},

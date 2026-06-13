@@ -15,7 +15,7 @@ python scripts\build_state.py
 O usando la ruta directa validada:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\build_state.py
+python scripts\build_state.py
 ```
 
 ## Entradas

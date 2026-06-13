@@ -35,6 +35,7 @@ def train_neural_hybrid_v2(
     folds_only: bool = False,
     final_only: bool = False,
     resume: bool = True,
+    scoring_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     config = load_json_config(config_path)
     training = config["training"]
@@ -91,6 +92,7 @@ def train_neural_hybrid_v2(
                 save_artifact=False,
                 resume=resume,
                 run_label=f"fold {year}",
+                scoring_config=scoring_config,
             )
             metrics["folds"].append({"year": year, "status": "ok", **result["metrics"]})
 
@@ -115,6 +117,7 @@ def train_neural_hybrid_v2(
             save_artifact=True,
             resume=resume,
             run_label="final",
+            scoring_config=scoring_config,
         )
         metrics["final"] = result["metrics"]
         metrics["artifact_dir"] = str(output_root / "latest")
@@ -136,6 +139,7 @@ def _train_one(
     save_artifact: bool,
     resume: bool,
     run_label: str,
+    scoring_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     training = config["training"]
@@ -198,8 +202,8 @@ def _train_one(
 
     for epoch in range(start_epoch, max_epochs + 1):
         started = time.perf_counter()
-        train_loss = _run_epoch(model, train_loader, optimizer, scaler, device, loss_weights)
-        valid = _evaluate(model, valid_loader, device, loss_weights)
+        train_loss = _run_epoch(model, train_loader, optimizer, scaler, device, loss_weights, scoring_config)
+        valid = _evaluate(model, valid_loader, device, loss_weights, scoring_config)
         seconds = time.perf_counter() - started
         is_best = valid["loss"] < best_loss
         best_loss = min(best_loss, valid["loss"])
@@ -232,7 +236,7 @@ def _train_one(
         model.load_state_dict(checkpoint["model_state"])
     scoreline_temperature = _fit_temperature(model, valid_loader, device, "scoreline_logits", "scoreline")
     outcome_temperature = _fit_temperature(model, valid_loader, device, "outcome_logits", "outcome")
-    final_metrics = _evaluate(model, valid_loader, device, loss_weights)
+    final_metrics = _evaluate(model, valid_loader, device, loss_weights, scoring_config)
     final_metrics.update(
         {
             "train_examples": len(train_examples),
@@ -265,6 +269,7 @@ def _train_one(
                 "scoreline_temperature": scoreline_temperature,
                 "outcome_temperature": outcome_temperature,
             },
+            "scoring_config": scoring_config,
         }
         (output_dir / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
         print(f"[hybrid-v2][{run_label}] artefacto final guardado en {output_dir}", flush=True)

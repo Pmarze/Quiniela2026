@@ -1,0 +1,67 @@
+name: Update Public Dashboard Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC. Runs every 30 minutes during June and July; disable after the tournament if desired.
+    - cron: "17,47 * * 6,7 *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-public-dashboard
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Pull Git LFS artifacts
+        run: git lfs pull
+
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: quiniela2026
+          auto-activate-base: false
+
+      - name: Rebuild public data
+        env:
+          QUINIELA_FRIENDS_SHEET_ID: ${{ secrets.QUINIELA_FRIENDS_SHEET_ID }}
+          QUINIELA_FRIENDS_SHEET_GID: ${{ secrets.QUINIELA_FRIENDS_SHEET_GID }}
+          QUINIELA_FRIENDS_SHEET_NAME: ${{ secrets.QUINIELA_FRIENDS_SHEET_NAME }}
+        run: |
+          python scripts/bootstrap_data.py --preset base
+          python scripts/run_model.py
+          if [ -n "$QUINIELA_FRIENDS_SHEET_ID" ]; then
+            python scripts/build_friends_quinielas.py
+          else
+            echo "QUINIELA_FRIENDS_SHEET_ID not configured; using committed friends JSON."
+          fi
+          python scripts/generate_dashboard.py
+
+      - name: Verify public dashboard
+        run: python scripts/check_public_dashboard.py docs/index.html
+
+      - name: Commit generated public artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html data/ui/prediction_overrides.json data/ui/friends_quinielas.json
+          if git diff --cached --quiet; then
+            echo "No public dashboard changes to commit."
+          else
+            git commit -m "Daily public dashboard update"
+            git push
+          fi

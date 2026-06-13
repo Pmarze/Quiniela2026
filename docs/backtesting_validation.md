@@ -50,8 +50,8 @@ python scripts\generate_validation_dashboard.py
 Con Python completo del entorno Conda:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\run_backtest.py
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\generate_validation_dashboard.py
+python scripts\run_backtest.py
+python scripts\generate_validation_dashboard.py
 ```
 
 ## Artefactos

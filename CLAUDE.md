@@ -42,11 +42,11 @@ el usuario los revise y apruebe explícitamente.
 ## Entorno Python
 
 ```
-Intérprete : C:\Users\pablo\.conda\envs\quiniela2026\python.exe
-Versión    : Python 3.11
+conda activate quiniela2026
 ```
 
-Siempre usar ese intérprete. No usar `python` o `python3` a secas en PowerShell.
+No hardcodear rutas absolutas de Python. Desde la raiz del repo, usar `python ...`
+despues de activar el entorno.
 
 ---
 
@@ -56,12 +56,15 @@ Siempre usar ese intérprete. No usar `python` o `python3` a secas en PowerShell
 # 1. Actualizar datos y correr modelos
 python scripts/run_daily.py         # o el script correspondiente
 
-# 2. Construir quinielas de amigos (si hay CSVs nuevos)
+# 2. Construir quinielas de amigos solo en entorno local/privado
 python scripts/build_friends_quinielas.py
 
-# 3. Regenerar dashboard
+# 3. Regenerar dashboard publico con amigos
 python scripts/generate_dashboard.py
-# output: docs/index.html (se commitea junto con el resto)
+# output: docs/index.html
+
+# Version sin amigos solo si se pide explicitamente:
+python scripts/generate_dashboard.py --exclude-friends
 
 # 4. Commit y push a development
 git add ...
@@ -82,7 +85,7 @@ git push origin development
 | `scripts/build_friends_quinielas.py` | Procesa CSVs de amigos → JSON |
 | `curated_inputs/quinielas/` | CSVs de participantes (uno por amigo) |
 | `data/ui/prediction_overrides.json` | Predicciones y picks del sistema |
-| `data/ui/friends_quinielas.json` | JSON generado de quinielas de amigos |
+| `data/ui/friends_quinielas.json` | JSON publicable de quinielas de amigos |
 | `docs/index.html` | Dashboard generado — se publica en GitHub Pages desde `main` |
 | `configs/models.yaml` | Configuración de modelos activos |
 | `data/quiniela.db` | Base SQLite — local, no se commitea (>100 MB) |

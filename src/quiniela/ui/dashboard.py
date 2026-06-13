@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from quiniela.models.common import load_json_config
+from quiniela.scoring.quiniela import list_scoring_profiles, resolve_scoring_profile
 from quiniela.storage.sqlite_store import SQLiteStore
 
 
@@ -30,6 +33,7 @@ _FAMILY_BY_MODEL_ID: dict[str, dict[str, str]] = {
     # Modelos adicionales presentes en prediction_overrides.json
     "bayesian_monte_carlo_scoreline": {"family": "MONTE CARLO",      "fb": "fb-mba"},
     "opta_power_poisson":             {"family": "OPTA EXTERNO",     "fb": "fb-fgol"},
+    "similar_match_knn_scoreline":     {"family": "PARTIDOS SIM.",    "fb": "fb-sim"},
 }
 
 _STAGE_TO_PHASE: dict[str, str] = {
@@ -40,6 +44,12 @@ _STAGE_TO_PHASE: dict[str, str] = {
     "final":       "final",
     "third_place": "3rd",
 }
+
+_FRIENDLY_PREP_WINDOW_START = "2026-06-01"
+_FRIENDLY_PREP_WINDOW_END = "2026-06-09"
+_FRIENDLY_GOAL_REFERENCE_MATCHES = 10
+_FRIENDLY_GOAL_HALFLIFE_MATCHES = 4.0
+_FRIENDLY_GOAL_SHRINK_MATCHES = 8.0
 
 
 @dataclass(frozen=True)
@@ -60,6 +70,9 @@ def generate_dashboard(
     output_path: Path | None = None,
     predictions_path: Path | None = None,
     friends_path: Path | None = None,
+    scoring_config_path: Path | None = None,
+    public_mode: bool = False,
+    private_access_hash: str | None = None,
 ) -> DashboardResult:
     store = SQLiteStore(db_path)
     store.initialize()
@@ -68,10 +81,21 @@ def generate_dashboard(
         state        = _load_latest_state(conn)
         matches      = _load_matches(conn)
         group_tables = _load_group_tables(conn)
+        recent_friendlies, friendly_coverage = _load_recent_friendlies(conn, matches)
         predictions  = _load_prediction_overrides(predictions_path)
         backtest     = _load_backtest_data(conn)
-        friends      = _load_friends_quinielas(friends_path)
-        payload      = _build_unified_payload(state, matches, group_tables, predictions, backtest, friends)
+        friends      = [] if public_mode else _load_friends_quinielas(friends_path)
+        scoring_profiles = _discover_scoring_profiles(
+            project_root, scoring_config_path, predictions_path,
+        )
+        payload      = _build_unified_payload(
+            state, matches, group_tables, predictions, backtest, friends,
+            scoring_profiles=scoring_profiles,
+            recent_friendlies=recent_friendlies,
+            friendly_coverage=friendly_coverage,
+            public_mode=public_mode,
+            private_access_hash=private_access_hash,
+        )
     finally:
         store.close()
 
@@ -145,6 +169,192 @@ def _load_friends_quinielas(friends_path: Path | None) -> list[dict[str, Any]]:
         return data.get("friends", [])
     except Exception:
         return []
+
+
+def _load_recent_friendlies(
+    conn: sqlite3.Connection,
+    matches: list[dict[str, Any]],
+    limit: int = 5,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    coverage: dict[str, Any] = {
+        "max_date": None,
+        "total": 0,
+        "prep_window_start": _FRIENDLY_PREP_WINDOW_START,
+        "prep_window_end": _FRIENDLY_PREP_WINDOW_END,
+        "prep_window_count": 0,
+        "goal_reference_matches": _FRIENDLY_GOAL_REFERENCE_MATCHES,
+        "goal_reference_halflife": _FRIENDLY_GOAL_HALFLIFE_MATCHES,
+    }
+    try:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                MAX(match_date) AS max_date,
+                SUM(CASE WHEN match_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS prep_window_count,
+                AVG((home_score + away_score) / 2.0) AS avg_goals_per_team
+            FROM v_canonical_historical_matches
+            WHERE is_friendly = 1
+            """,
+            (_FRIENDLY_PREP_WINDOW_START, _FRIENDLY_PREP_WINDOW_END),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return {}, coverage
+
+    if row is not None:
+        coverage["total"] = int(row["total"] or 0)
+        coverage["max_date"] = row["max_date"]
+        coverage["prep_window_count"] = int(row["prep_window_count"] or 0)
+        coverage["avg_goals_per_team"] = round(float(row["avg_goals_per_team"] or 1.35), 3)
+
+    team_ids = sorted({
+        str(team_id)
+        for match in matches
+        for team_id in (match.get("team_a_canonical_id"), match.get("team_b_canonical_id"))
+        if team_id
+    })
+    if not team_ids:
+        return {}, coverage
+
+    placeholders = ",".join("?" for _ in team_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            historical_match_id,
+            match_date,
+            team_a_name,
+            team_b_name,
+            team_a_canonical_id,
+            team_b_canonical_id,
+            home_score,
+            away_score,
+            city,
+            country,
+            neutral
+        FROM v_canonical_historical_matches
+        WHERE is_friendly = 1
+          AND (
+              team_a_canonical_id IN ({placeholders})
+              OR team_b_canonical_id IN ({placeholders})
+          )
+        ORDER BY match_date DESC, historical_match_id DESC
+        """,
+        (*team_ids, *team_ids),
+    ).fetchall()
+
+    friendlies: dict[str, dict[str, Any]] = {
+        team_id: {"matches": [], "goal_ref": _empty_goal_reference(coverage)}
+        for team_id in team_ids
+    }
+    seen: dict[str, set[str]] = {team_id: set() for team_id in team_ids}
+    goal_samples: dict[str, list[dict[str, float]]] = {team_id: [] for team_id in team_ids}
+    for row in rows:
+        row_id = row["historical_match_id"]
+        perspectives = (
+            (True, row["team_a_canonical_id"], row["team_b_name"], row["home_score"], row["away_score"]),
+            (False, row["team_b_canonical_id"], row["team_a_name"], row["away_score"], row["home_score"]),
+        )
+        for is_home, team_id, opponent, goals_for, goals_against in perspectives:
+            if not team_id or team_id not in friendlies:
+                continue
+            if row_id in seen[team_id]:
+                continue
+            goals_for = int(goals_for)
+            goals_against = int(goals_against)
+            if len(goal_samples[team_id]) < _FRIENDLY_GOAL_REFERENCE_MATCHES:
+                goal_samples[team_id].append({
+                    "goals_for": float(goals_for),
+                    "goals_against": float(goals_against),
+                    "scored": 1.0 if goals_for > 0 else 0.0,
+                    "conceded": 1.0 if goals_against > 0 else 0.0,
+                })
+            if len(friendlies[team_id]["matches"]) >= limit:
+                seen[team_id].add(row_id)
+                continue
+            if goals_for > goals_against:
+                result = "G"
+            elif goals_for < goals_against:
+                result = "P"
+            else:
+                result = "E"
+            venue = ", ".join(part for part in (row["city"], row["country"]) if part)
+            side = "N" if row["neutral"] == 1 else ("L" if is_home else "V")
+            friendlies[team_id]["matches"].append({
+                "date": row["match_date"],
+                "opponent": opponent,
+                "score": f"{goals_for}-{goals_against}",
+                "result": result,
+                "side": side,
+                "venue": venue,
+                "home": row["team_a_name"],
+                "away": row["team_b_name"],
+                "actual_score": f"{row['home_score']}-{row['away_score']}",
+            })
+            seen[team_id].add(row_id)
+
+    for team_id, samples in goal_samples.items():
+        friendlies[team_id]["goal_ref"] = _weighted_goal_reference(samples, coverage)
+
+    return friendlies, coverage
+
+
+def _empty_goal_reference(coverage: dict[str, Any]) -> dict[str, Any]:
+    baseline = float(coverage.get("avg_goals_per_team") or 1.35)
+    return {
+        "n": 0,
+        "weight": 0.0,
+        "confidence": 0.0,
+        "gf": round(baseline, 3),
+        "ga": round(baseline, 3),
+        "p_scored_recent": round(1.0 - math.exp(-baseline), 4),
+        "p_conceded_recent": round(1.0 - math.exp(-baseline), 4),
+    }
+
+
+def _weighted_goal_reference(samples: list[dict[str, float]], coverage: dict[str, Any]) -> dict[str, Any]:
+    baseline = float(coverage.get("avg_goals_per_team") or 1.35)
+    if not samples:
+        return _empty_goal_reference(coverage)
+
+    decay = math.log(2.0) / _FRIENDLY_GOAL_HALFLIFE_MATCHES
+    weights = [math.exp(-decay * idx) for idx, _sample in enumerate(samples)]
+    total_weight = sum(weights)
+    weighted_gf = sum(w * sample["goals_for"] for w, sample in zip(weights, samples)) / total_weight
+    weighted_ga = sum(w * sample["goals_against"] for w, sample in zip(weights, samples)) / total_weight
+    p_scored = sum(w * sample["scored"] for w, sample in zip(weights, samples)) / total_weight
+    p_conceded = sum(w * sample["conceded"] for w, sample in zip(weights, samples)) / total_weight
+    confidence = min(1.0, len(samples) / _FRIENDLY_GOAL_SHRINK_MATCHES)
+    gf = confidence * weighted_gf + (1.0 - confidence) * baseline
+    ga = confidence * weighted_ga + (1.0 - confidence) * baseline
+    p_scored_adj = confidence * p_scored + (1.0 - confidence) * (1.0 - math.exp(-baseline))
+    p_conceded_adj = confidence * p_conceded + (1.0 - confidence) * (1.0 - math.exp(-baseline))
+    return {
+        "n": len(samples),
+        "weight": round(total_weight, 3),
+        "confidence": round(confidence, 3),
+        "gf": round(gf, 3),
+        "ga": round(ga, 3),
+        "p_scored_recent": round(p_scored_adj, 4),
+        "p_conceded_recent": round(p_conceded_adj, 4),
+    }
+
+
+def _matchup_goal_reference(
+    team_ref: dict[str, Any] | None,
+    opponent_ref: dict[str, Any] | None,
+    coverage: dict[str, Any] | None,
+) -> dict[str, Any]:
+    baseline = float((coverage or {}).get("avg_goals_per_team") or 1.35)
+    team_gf = float((team_ref or {}).get("gf", baseline))
+    opponent_ga = float((opponent_ref or {}).get("ga", baseline))
+    lam = max(0.05, min(4.0, (team_gf + opponent_ga) / 2.0))
+    return {
+        "lambda": round(lam, 3),
+        "p_goal": round(1.0 - math.exp(-lam), 4),
+        "gf": round(team_gf, 3),
+        "opp_ga": round(opponent_ga, 3),
+        "n": int((team_ref or {}).get("n") or 0),
+    }
 
 
 def _load_backtest_data(conn: sqlite3.Connection) -> dict[str, Any] | None:
@@ -254,6 +464,39 @@ def _load_backtest_data(conn: sqlite3.Connection) -> dict[str, Any] | None:
     }
 
 
+def _discover_scoring_profiles(
+    project_root: Path,
+    scoring_config_path: Path | None,
+    default_predictions_path: Path | None,
+) -> dict[str, Any]:
+    config_path = scoring_config_path or project_root / "configs" / "scoring.yaml"
+    if not config_path.exists():
+        return {}
+    raw = load_json_config(config_path)
+    profiles = list_scoring_profiles(raw)
+    default_name = raw.get("default_profile", next(iter(profiles), "default"))
+    result: dict[str, Any] = {"default": default_name, "profiles": {}}
+    for name, profile in profiles.items():
+        entry: dict[str, Any] = {
+            "label": profile.get("label", name),
+            "exact_score": profile.get("exact_score", 5),
+            "same_margin_or_draw": profile.get("same_margin_or_draw", 3),
+            "winner": profile.get("winner", 1),
+        }
+        if name == default_name:
+            entry["available"] = True
+        else:
+            alt_ui_dir = project_root / "data" / "ui" / f"scoring_{name}"
+            alt_overrides = alt_ui_dir / "prediction_overrides.json"
+            if alt_overrides.exists():
+                entry["available"] = True
+                entry["overrides"] = json.loads(alt_overrides.read_text(encoding="utf-8"))
+            else:
+                entry["available"] = False
+        result["profiles"][name] = entry
+    return result
+
+
 def _build_unified_payload(
     state: dict[str, Any],
     matches: list[dict[str, Any]],
@@ -261,8 +504,14 @@ def _build_unified_payload(
     predictions_overrides: dict[str, Any],
     backtest_data: dict[str, Any] | None,
     friends: list[dict[str, Any]] | None = None,
+    scoring_profiles: dict[str, Any] | None = None,
+    recent_friendlies: dict[str, dict[str, Any]] | None = None,
+    friendly_coverage: dict[str, Any] | None = None,
+    public_mode: bool = True,
+    private_access_hash: str | None = None,
 ) -> dict[str, Any]:
     pred_matches = predictions_overrides.get("matches", {})
+    recent_friendlies = recent_friendlies or {}
 
     # ── Sección 1: Grupos ──────────────────────────────────────────────────────
     groups_map: dict[str, dict[str, Any]] = {}
@@ -272,7 +521,19 @@ def _build_unified_payload(
             groups_map[gname] = {"id": gname, "teams": []}
         tname = row.get("team_name", "?")
         if not any(t["t"] == tname for t in groups_map[gname]["teams"]):
-            groups_map[gname]["teams"].append({"t": tname})
+            goals_for = int(row.get("goals_for") or 0)
+            goals_against = int(row.get("goals_against") or 0)
+            groups_map[gname]["teams"].append({
+                "t": tname,
+                "j": int(row.get("played") or 0),
+                "g": int(row.get("wins") or 0),
+                "e": int(row.get("draws") or 0),
+                "p": int(row.get("losses") or 0),
+                "gf": goals_for,
+                "ga": goals_against,
+                "gd": int(row.get("goal_difference") or (goals_for - goals_against)),
+                "pts": int(row.get("points") or 0),
+            })
     groups = [groups_map[k] for k in sorted(groups_map)]
 
     # ── Sección 2: Partidos ────────────────────────────────────────────────────
@@ -325,6 +586,10 @@ def _build_unified_payload(
 
         # 2e — Ensamble del partido
         stage = match.get("stage") or "group"
+        home_friendlies = recent_friendlies.get(str(match.get("team_a_canonical_id") or ""), {})
+        away_friendlies = recent_friendlies.get(str(match.get("team_b_canonical_id") or ""), {})
+        home_goal_ref = home_friendlies.get("goal_ref")
+        away_goal_ref = away_friendlies.get("goal_ref")
         unified_matches.append({
             "id":     seq,
             "num":    match.get("match_number") or seq,
@@ -347,6 +612,14 @@ def _build_unified_payload(
             },
             "frozen": bool(overrides.get("frozen_pick", False)),
             "models": models_out,
+            "friendlies": {
+                "home": home_friendlies.get("matches", []),
+                "away": away_friendlies.get("matches", []),
+            },
+            "goal_ref": {
+                "home": _matchup_goal_reference(home_goal_ref, away_goal_ref, friendly_coverage),
+                "away": _matchup_goal_reference(away_goal_ref, home_goal_ref, friendly_coverage),
+            },
         })
 
     # ── Sección 3: KPIs ───────────────────────────────────────────────────────
@@ -368,11 +641,47 @@ def _build_unified_payload(
         "predictions": [],
     }
 
+    # ── Sección 6: Scoring Profiles ─────────────────────────────────────────
+    sp = scoring_profiles or {}
+    sp_payload: dict[str, Any] = {}
+    default_profile = sp.get("default", "5-3-1")
+    for pname, pinfo in sp.get("profiles", {}).items():
+        entry: dict[str, Any] = {
+            "label": pinfo["label"],
+            "exact_score": pinfo.get("exact_score", 5),
+            "same_margin_or_draw": pinfo.get("same_margin_or_draw", 3),
+            "winner": pinfo.get("winner", 1),
+            "ready": bool(pinfo.get("available")),
+        }
+        if pname != default_profile and "overrides" in pinfo:
+            alt_matches = pinfo["overrides"].get("matches", {})
+            alt_models: dict[str, Any] = {}
+            for sid, ov in alt_matches.items():
+                alt_qpick = ov.get("quiniela_pick") or {}
+                alt_model_preds = []
+                for amp in ov.get("model_predictions", []):
+                    alt_model_preds.append({
+                        "id":    amp.get("model_id", ""),
+                        "score": amp.get("score") or "—",
+                        "ev":    float(amp.get("expected_points") or 0),
+                    })
+                alt_models[sid] = {
+                    "q": {
+                        "model": alt_qpick.get("model_id") or "",
+                        "score": alt_qpick.get("score") or "—",
+                        "ev":    float(alt_qpick.get("expected_points") or 0),
+                    },
+                    "m": alt_model_preds,
+                }
+            entry["matches"] = alt_models
+        sp_payload[pname] = entry
+
     return {
         "meta": {
             "generated_at": generated_at,
             "run_id":       state.get("state_id", ""),
             "phase":        phase_label,
+            "friendlies":   friendly_coverage or {},
         },
         "kpis": {
             "total":     len(matches),
@@ -385,6 +694,15 @@ def _build_unified_payload(
         "matches":  unified_matches,
         "backtest": backtest,
         "friends":  friends or [],
+        "access": {
+            "public_mode": bool(public_mode),
+            "private_sections": ["amigos", "sonadora"],
+            "private_hash": (private_access_hash or "").strip(),
+        },
+        "scoring":  {
+            "active":   default_profile,
+            "profiles": sp_payload,
+        },
     }
 
 

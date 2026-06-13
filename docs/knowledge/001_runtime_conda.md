@@ -15,13 +15,13 @@ C:\ProgramData\anaconda3\Scripts\conda.exe
 El entorno fue detectado en:
 
 ```text
-C:\Users\pablo\.conda\envs\quiniela2026
+quiniela2026
 ```
 
 Python del entorno:
 
 ```text
-C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+python
 ```
 
 Version validada:
@@ -35,7 +35,7 @@ Python 3.11.15
 Usar directamente el `python.exe` del entorno para evitar bloqueos temporales de `conda run` en PowerShell:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\db_summary.py --samples
+python scripts\db_summary.py --samples
 ```
 
 ## Validaciones realizadas
@@ -52,4 +52,3 @@ Ambas validaciones terminaron correctamente.
 ## Estado
 
 Activo. No contradice conocimientos anteriores.
-

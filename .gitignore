@@ -16,6 +16,7 @@ htmlcov/
 venv/
 env/
 *.local
+*.local.json
 
 # Jupyter
 .ipynb_checkpoints/

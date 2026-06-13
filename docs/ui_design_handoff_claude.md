@@ -72,7 +72,7 @@ Runtime esperado:
 
 ```text
 Conda env: quiniela2026
-Python: C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+Python: python
 Proyecto: D:\Quiniela2026
 ```
 

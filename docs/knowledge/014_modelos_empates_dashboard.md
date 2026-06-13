@@ -56,7 +56,7 @@ empates
 Corrida realizada con el entorno Conda:
 
 ```powershell
-C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+python
 ```
 
 Resultado:

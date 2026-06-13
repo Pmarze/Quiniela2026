@@ -9,7 +9,7 @@ Se agrego una capa de canonicalizacion, normalizacion horaria, reconciliacion in
 Validado con:
 
 ```text
-C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+python
 ```
 
 ## Comandos nuevos
@@ -92,4 +92,3 @@ Los placeholders de eliminatoria no se tratan como errores de reconciliacion.
 ## Estado
 
 Activo. No contradice conocimientos anteriores; agrega una capa nueva antes del estado vivo y modelos.
-

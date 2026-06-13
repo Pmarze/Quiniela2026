@@ -65,16 +65,15 @@ Despues se ejecuto con permisos externos y la descarga fue exitosa.
 Revisar la base:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\db_summary.py --samples
+python scripts\db_summary.py --samples
 ```
 
 Actualizar datos otro dia:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\download_data.py
+python scripts\download_data.py
 ```
 
 ## Estado
 
 Activo. No contradice conocimientos anteriores.
-

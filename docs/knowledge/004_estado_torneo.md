@@ -9,7 +9,7 @@ Ya existe una capa implementada para construir el estado vivo del Mundial desde 
 Se valido usando el entorno Conda principal:
 
 ```text
-C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+python
 ```
 
 ## Comando principal
@@ -71,4 +71,3 @@ No deben usarse para modelos.
 ## Estado
 
 Activo. No contradice conocimientos anteriores; agrega una regla nueva sobre interpretacion de estados de partido.
-

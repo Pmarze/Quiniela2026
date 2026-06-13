@@ -5,6 +5,26 @@ from typing import Any
 from quiniela.models.common import outcome_1x2, parse_score
 
 
+def resolve_scoring_profile(
+    scoring_config: dict[str, Any],
+    profile: str | None = None,
+) -> dict[str, Any]:
+    profiles = scoring_config.get("profiles")
+    if profiles is None:
+        return scoring_config
+    name = profile or scoring_config.get("default_profile", "5-3-1")
+    if name not in profiles:
+        raise ValueError(f"Scoring profile '{name}' not found. Available: {list(profiles.keys())}")
+    return dict(profiles[name])
+
+
+def list_scoring_profiles(scoring_config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    profiles = scoring_config.get("profiles")
+    if profiles is None:
+        return {"default": scoring_config}
+    return dict(profiles)
+
+
 def select_best_score(score_matrix: dict[str, Any], scoring: dict[str, Any]) -> dict[str, Any]:
     exact_points = float(scoring.get("exact_score", 5))
     margin_points = float(scoring.get("same_margin_or_draw", scoring.get("margin_or_draw", 3)))

@@ -244,3 +244,29 @@ notes
 ## Criterio de Exito
 
 Debe ser posible ejecutar el pipeline el 14 de junio y luego el 15 de junio con resultados nuevos, sin modificar notebooks ni codigo de modelos. Solo cambian los snapshots y el `as_of_utc`.
+
+## Publicacion Automatica
+
+Para el repositorio publico, `docs/index.html` se genera con quinielas de amigos si existe
+`data/ui/friends_quinielas.json`. El enlace/ID de Google Sheets se queda fuera del repo.
+
+Comando local publico:
+
+```powershell
+conda activate quiniela2026
+python scripts\daily_update.py --skip-git
+python scripts\check_public_dashboard.py docs\index.html
+```
+
+Actualizar amigos localmente:
+
+```powershell
+python scripts\build_friends_quinielas.py
+python scripts\generate_dashboard.py
+```
+
+GitHub Actions:
+
+- `.github/workflows/update-dashboard.yml` reconstruye datos/modelos y commitea `docs/index.html`, `data/ui/prediction_overrides.json` y `data/ui/friends_quinielas.json`.
+- `.github/workflows/deploy-pages.yml` despliega `docs/` a GitHub Pages cuando cambia `docs/index.html` en `main`.
+- Los horarios de `schedule` corren en UTC y pueden retrasarse; para actualizar despues de cada partido se usa una frecuencia de 30 minutos durante junio/julio.

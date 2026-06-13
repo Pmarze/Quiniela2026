@@ -17,6 +17,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from quiniela.models.common import load_json_config, normalize_score_matrix, outcome_1x2, parse_score
+from quiniela.scoring.quiniela import resolve_scoring_profile
 
 
 ENSEMBLE_MODEL_IDS = {
@@ -62,6 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--iterations", type=int, default=8000)
     parser.add_argument("--seed", type=int, default=20260608)
     parser.add_argument("--min-weight", type=float, default=0.0)
+    parser.add_argument("--scoring-profile", default=None, help="Perfil de scoring (ej: 3-1-0).")
     return parser.parse_args()
 
 
@@ -69,7 +71,7 @@ def main() -> int:
     args = parse_args()
     models_path = Path(args.models_config)
     models_config = load_json_config(models_path)
-    scoring_config = load_json_config(Path(args.scoring_config))
+    scoring_config = resolve_scoring_profile(load_json_config(Path(args.scoring_config)), args.scoring_profile)
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
     try:

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from quiniela.backtest.runner import _ensure_backtest_schema
+from quiniela.scoring.quiniela import resolve_scoring_profile
 from quiniela.storage.sqlite_store import SQLiteStore
 
 
@@ -88,7 +89,8 @@ def _load_scoring_config(project_root: Path) -> dict[str, Any]:
     path = project_root / "configs" / "scoring.yaml"
     if not path.exists():
         return {"exact_score": 5, "same_margin_or_draw": 3, "winner": 1}
-    return json.loads(path.read_text(encoding="utf-8"))
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return resolve_scoring_profile(raw)
 
 
 def _load_neural_training_summary(project_root: Path) -> dict[str, Any] | None:

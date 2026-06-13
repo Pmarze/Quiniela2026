@@ -5,7 +5,7 @@ description: "Current Quiniela2026 project state for future Codex sessions"
 
 # Project Status - Quiniela2026
 
-Current date of this status: 2026-06-08.
+Current date of this status: 2026-06-13.
 
 ## Objective
 
@@ -20,7 +20,7 @@ Scoring priority:
 
 ## Current Repository Policy
 
-The repo is prepared for private GitHub collaboration.
+The repo is being prepared for public GitHub publication.
 
 Versioned:
 
@@ -30,6 +30,8 @@ Versioned:
 - memory handoff files in `memory/`
 - curated small inputs in `curated_inputs/`
 - final published models in `model_registry/`
+- public dashboard output in `docs/index.html`
+- public friend-pick comparison data in `data/ui/friends_quinielas.json`
 
 Not versioned:
 
@@ -37,7 +39,15 @@ Not versioned:
 - generated `outputs/`
 - local training runs/checkpoints in `data/models/` and `data/models_local/`
 - `.env`
+- `configs/*.local.json`
 - `.claude/settings.local.json`
+
+Public/security restrictions:
+
+- Friend picks are intentionally public through `data/ui/friends_quinielas.json`.
+- Google Sheets source URL/ID for friend picks is private and must only live in `QUINIELA_FRIENDS_SHEET_*` environment variables or ignored local config.
+- Do not commit credentials, local paths, tokens, private keys or generated local databases.
+- Run `python scripts\security_scan_publish.py` before publication-oriented commits.
 
 Collaborators should start with `docs/collaborator_onboarding.md`.
 
@@ -88,7 +98,6 @@ Configured in `configs/models.yaml`.
 
 Main families:
 
-- baseline Poisson
 - Elo Poisson
 - Elo Dixon-Coles
 - attack/defense Poisson
@@ -98,8 +107,12 @@ Main families:
 - Opta power Poisson
 - neural scoreline MLP
 - neural hybrid v2
+- similar match KNN scoreline
 - weighted ensembles
 - calibrated scoreline ensemble
+
+`baseline_poisson` is currently disabled and removed from dashboard `model_predictions`.
+`similar_match_knn_scoreline` is active as an experimental standalone model, excluded from ensembles and excluded from automatic preferred-pick selection until more evidence is collected.
 
 Current default quiniela model:
 
@@ -107,7 +120,28 @@ Current default quiniela model:
 weighted_points_ensemble
 ```
 
-Before real 2026 results exist, the dashboard falls back to the points-oriented ensemble as the best-current model. Once real tournament results are present, the dashboard can rank models by current live performance.
+Before real 2026 results exist, the dashboard falls back to the points-oriented ensemble/default logic. Once real tournament results are present, `scripts/run_model.py` selects the operational quiniela model from the live 2026 ranking using frozen pre-match predictions. At the current handoff, after 3 completed matches, the live preferred model is `neural_scoreline_mlp`.
+
+## Current 2026 State
+
+Latest known state after the daily update:
+
+- state_id: `state_20260613T051235Z_26d17845`
+- as_of_utc: `2026-06-13T05:12:35Z`
+- completed matches: 4
+- pending matches: 100
+
+Completed results:
+
+- Mexico 2-0 South Africa
+- South Korea 2-1 Czech Republic
+- Canada 1-1 Bosnia and Herzegovina
+- United States 4-1 Paraguay
+
+Latest relevant prediction run:
+
+- prediction_run_id: `pred_20260613T051336Z_4c5a6565`
+- preferred model selected by live 2026 performance: `neural_scoreline_mlp`
 
 ## Published Models
 
@@ -149,14 +183,18 @@ Important files:
 
 Generated files:
 
+- `docs/index.html` (public dashboard output, includes `DATA.friends` when available)
 - `outputs/dashboard/index.html`
 - `outputs/validation_dashboard/index.html`
 
 Do not edit generated HTML directly. Regenerate it from scripts.
 
+Recent dashboard changes are summarized in `docs/knowledge/039_handoff_dashboard_y_operacion_2026_live.md`.
+Publication/security policy is summarized in `docs/knowledge/040_publicacion_publica_dashboard_privado.md`.
+
 ## Next Good Work Items
 
-- Push the private GitHub repository and invite the collaborator.
-- Have the collaborator run `docs/collaborator_onboarding.md` from a clean clone.
-- Compare generated dashboards after both machines run `python scripts\bootstrap_data.py --preset all`.
-- Publish only final model artifacts to `model_registry/` when collaborating on trained models.
+- Keep `docs/index.html` and `outputs/dashboard/index.html` synchronized after dashboard changes.
+- Continue daily updates with `python scripts\daily_update.py --skip-git` before reviewing new results.
+- Monitor the live 2026 model ranking; the preferred model can change as completed matches increase.
+- Backtest and review `similar_match_knn_scoreline` before allowing it into ensembles or automatic preferred-pick selection.

@@ -42,6 +42,11 @@ def parse_args() -> argparse.Namespace:
         default=str(PROJECT_ROOT / "data" / "backtests"),
         help="Carpeta raiz para artefactos de backtest.",
     )
+    parser.add_argument(
+        "--scoring-profile",
+        default=None,
+        help="Nombre del perfil de scoring (ej: 3-1-0). Default: perfil por defecto.",
+    )
     return parser.parse_args()
 
 
@@ -54,6 +59,7 @@ def main() -> int:
         models_config_path=Path(args.models_config),
         scoring_config_path=Path(args.scoring_config),
         output_root=Path(args.output_root),
+        scoring_profile=args.scoring_profile,
     )
     print(f"backtest_run_id: {result.backtest_run_id}")
     print(f"years: {', '.join(str(year) for year in result.years)}")

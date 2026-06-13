@@ -107,7 +107,7 @@ python scripts\build_history.py
 Con el Python completo del entorno:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\build_history.py
+python scripts\build_history.py
 ```
 
 ## Primera Corrida

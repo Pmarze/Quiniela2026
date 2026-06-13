@@ -16,16 +16,16 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH  = PROJECT_ROOT / "data" / "ui" / "friends_quinielas.json"
-
-SHEET_ID = "1YufsZRD1af2QcS6GvT403mwgsFNBRjMCJ83OEMh7r10"
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+LOCAL_CONFIG_PATH = PROJECT_ROOT / "configs" / "friends_sheet.local.json"
 
 PICK_RE = re.compile(r"^\s*(\d+)\s*[-:]\s*(\d+)\s*$")
 
@@ -36,8 +36,45 @@ def _slugify(name: str) -> str:
     return s.strip("-") or "participante"
 
 
-def _fetch_sheet() -> list[list[str]]:
-    req = urllib.request.Request(SHEET_URL, headers={"User-Agent": "Mozilla/5.0"})
+def _load_sheet_config() -> dict[str, str]:
+    local_config: dict[str, str] = {}
+    if LOCAL_CONFIG_PATH.exists():
+        local_config = json.loads(LOCAL_CONFIG_PATH.read_text(encoding="utf-8"))
+
+    sheet_id = (
+        os.environ.get("QUINIELA_FRIENDS_SHEET_ID")
+        or local_config.get("sheet_id")
+        or ""
+    ).strip()
+    if not sheet_id:
+        raise RuntimeError(
+            "Falta configurar QUINIELA_FRIENDS_SHEET_ID o configs/friends_sheet.local.json."
+        )
+
+    sheet_gid = (
+        os.environ.get("QUINIELA_FRIENDS_SHEET_GID")
+        or local_config.get("gid")
+        or ""
+    ).strip()
+    sheet_name = (
+        os.environ.get("QUINIELA_FRIENDS_SHEET_NAME")
+        or local_config.get("sheet_name")
+        or ""
+    ).strip()
+    return {"sheet_id": sheet_id, "gid": sheet_gid, "sheet_name": sheet_name}
+
+
+def _sheet_url(config: dict[str, str]) -> str:
+    url = f"https://docs.google.com/spreadsheets/d/{config['sheet_id']}/export?format=csv"
+    if config.get("gid"):
+        url += "&gid=" + urllib.parse.quote(config["gid"])
+    elif config.get("sheet_name"):
+        url += "&sheet=" + urllib.parse.quote(config["sheet_name"])
+    return url
+
+
+def _fetch_sheet(sheet_url: str) -> list[list[str]]:
+    req = urllib.request.Request(sheet_url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=20) as resp:
         content = resp.read().decode("utf-8")
     return list(csv.reader(io.StringIO(content)))
@@ -122,9 +159,15 @@ def _write(data: dict) -> None:
 
 
 def main() -> int:
-    print(f"Descargando hoja desde Google Sheets (ID: {SHEET_ID})...")
     try:
-        rows = _fetch_sheet()
+        sheet_config = _load_sheet_config()
+    except Exception as e:
+        print(f"  ERROR de configuracion de Google Sheets: {e}")
+        return 1
+
+    print("Descargando hoja desde Google Sheets (fuente privada configurada localmente)...")
+    try:
+        rows = _fetch_sheet(_sheet_url(sheet_config))
     except Exception as e:
         print(f"  ERROR al descargar la hoja: {e}")
         return 1

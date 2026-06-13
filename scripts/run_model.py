@@ -23,12 +23,15 @@ from quiniela.models import (
     run_elo_dixon_coles,
     run_elo_poisson,
     run_opta_power_poisson,
+    run_similar_match_knn_scoreline,
 )
 from quiniela.models.common import (
     ModelContext,
     ModelPrediction,
     load_json_config,
     load_model_context,
+    outcome_1x2,
+    parse_score,
     store_predictions_in_sqlite,
     summarize_score_matrix,
     utc_now,
@@ -36,6 +39,7 @@ from quiniela.models.common import (
 )
 from quiniela.models.neural_scoreline_mlp import run_neural_scoreline_mlp
 from quiniela.models.neural_hybrid_v2 import run_neural_hybrid_v2
+from quiniela.scoring.quiniela import resolve_scoring_profile
 
 
 MODEL_RUNNERS = {
@@ -49,6 +53,7 @@ MODEL_RUNNERS = {
     "neural_hybrid_v2": run_neural_hybrid_v2,
     "neural_scoreline_mlp": run_neural_scoreline_mlp,
     "opta_power_poisson": run_opta_power_poisson,
+    "similar_match_knn_scoreline": run_similar_match_knn_scoreline,
 }
 
 
@@ -63,6 +68,7 @@ MODEL_FAMILIES = {
     "neural_hybrid_v2": "red neuronal hibrida",
     "neural_scoreline_mlp": "red neuronal",
     "opta_power_poisson": "Opta externo",
+    "similar_match_knn_scoreline": "partidos similares",
     "weighted_ensemble": "ponderador",
     "weighted_points_ensemble": "ponderador puntos",
     "weighted_1x2_ensemble": "ponderador 1X2",
@@ -91,6 +97,10 @@ _BACKTEST_REFERENCE_MODELS: frozenset[str] = frozenset({
     "weighted_1x2_ensemble",
     "weighted_exact_ensemble",
     "calibrated_scoreline_ensemble",
+})
+
+_PREFERRED_PICK_EXCLUDED_MODELS: frozenset[str] = frozenset({
+    "similar_match_knn_scoreline",
 })
 
 
@@ -134,13 +144,19 @@ def parse_args() -> argparse.Namespace:
         default=str(PROJECT_ROOT / "data" / "ui" / "prediction_overrides.json"),
         help="JSON que consume el dashboard local.",
     )
+    parser.add_argument(
+        "--scoring-profile",
+        default=None,
+        help="Perfil de scoring (ej: 3-1-0). Default: perfil por defecto.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     models_config = load_json_config(Path(args.models_config))
-    scoring_config = load_json_config(Path(args.scoring_config))
+    scoring_config_raw = load_json_config(Path(args.scoring_config))
+    scoring_config = resolve_scoring_profile(scoring_config_raw, args.scoring_profile)
     selected_models = _select_models(models_config, args.model)
     base_model_configs = [model for model in selected_models if not _is_ensemble_model(model)]
     ensemble_model_configs = [model for model in selected_models if _is_ensemble_model(model)]
@@ -227,8 +243,10 @@ def main() -> int:
         ui_path = Path(args.ui_overrides)
         preferred_model_id = _select_preferred_model_id(
             db_path=Path(args.db),
+            ui_path=ui_path,
             predictions_by_model=predictions_by_model,
             fallback_model_id=str(models_config.get("default_quiniela_model_id", "")),
+            scoring_config=scoring_config,
         )
         write_ui_overrides(
             ui_path=ui_path,
@@ -262,24 +280,31 @@ def _is_ensemble_model(model_config: dict[str, Any]) -> bool:
 
 def _select_preferred_model_id(
     db_path: Path,
+    ui_path: Path,
     predictions_by_model: dict[str, list[ModelPrediction]],
     fallback_model_id: str,
+    scoring_config: dict[str, Any],
 ) -> str:
-    """Elige dinámicamente el modelo preferido según el backtest más reciente.
+    """Elige dinamicamente el modelo preferido para el pick operativo.
 
-    Lógica de selección:
-      Tier 1 — modelos base con validación limpia (sin data leakage de redes neuronales),
-               ordenados por total_quiniela_points DESC, brier_1x2 ASC.
-      Tier 2 — todos los modelos disponibles (incluye ensembles y neuronales),
-               misma métrica. Se usa si ningún modelo Tier-1 corrió en esta ejecución.
-      Fallback — default_quiniela_model_id del config, si el backtest no está disponible
-                 o ningún modelo del ranking está en predictions_by_model.
+    Cuando hay resultados reales del torneo, usa el ranking vivo 2026 calculado
+    con predicciones congeladas antes de cada partido. Antes del primer resultado,
+    usa el backtest mas reciente y finalmente el default del config.
     """
     import sqlite3 as _sqlite3
 
     available = set(predictions_by_model.keys())
     if not available:
         return fallback_model_id
+
+    current_pick = _select_current_tournament_model_id(
+        db_path=db_path,
+        ui_path=ui_path,
+        available_order=list(predictions_by_model.keys()),
+        scoring_config=scoring_config,
+    )
+    if current_pick:
+        return current_pick
 
     try:
         conn = _sqlite3.connect(str(db_path))
@@ -304,8 +329,12 @@ def _select_preferred_model_id(
         return fallback_model_id
 
     tiers = [
-        ("clean", [r for r in rows if r["model_id"] not in _BACKTEST_REFERENCE_MODELS]),
-        ("all",   rows),
+        ("clean", [
+            r for r in rows
+            if r["model_id"] not in _BACKTEST_REFERENCE_MODELS
+            and r["model_id"] not in _PREFERRED_PICK_EXCLUDED_MODELS
+        ]),
+        ("all", [r for r in rows if r["model_id"] not in _PREFERRED_PICK_EXCLUDED_MODELS]),
     ]
     for tier_label, candidates in tiers:
         for r in candidates:
@@ -320,6 +349,128 @@ def _select_preferred_model_id(
     return fallback_model_id
 
 
+def _select_current_tournament_model_id(
+    db_path: Path,
+    ui_path: Path,
+    available_order: list[str],
+    scoring_config: dict[str, Any],
+) -> str | None:
+    import sqlite3 as _sqlite3
+
+    available = set(available_order)
+    model_order = {model_id: idx for idx, model_id in enumerate(available_order)}
+    if not available:
+        return None
+
+    existing = _load_existing_ui_overrides(ui_path)
+    existing_matches = existing.get("matches", {})
+    if not isinstance(existing_matches, dict) or not existing_matches:
+        return None
+
+    try:
+        conn = _sqlite3.connect(str(db_path))
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT source_match_id, home_score, away_score
+            FROM v_latest_state_matches
+            WHERE LOWER(COALESCE(status, '')) IN ('completed', 'finished')
+              AND home_score IS NOT NULL
+              AND away_score IS NOT NULL
+            ORDER BY COALESCE(match_number, CAST(source_match_id AS INTEGER))
+            """
+        ).fetchall()
+        conn.close()
+    except Exception as exc:
+        print(f"[preferred_model] current tournament query failed ({exc}); usando backtest")
+        return None
+
+    if not rows:
+        return None
+
+    stats: dict[str, dict[str, float | int]] = {
+        model_id: {
+            "pts": 0.0,
+            "exact": 0,
+            "hits": 0,
+            "played": 0,
+            "order": model_order.get(model_id, 9999),
+        }
+        for model_id in available_order
+        if model_id not in _PREFERRED_PICK_EXCLUDED_MODELS
+    }
+
+    for row in rows:
+        source_match_id = str(row["source_match_id"])
+        prior = existing_matches.get(source_match_id) or {}
+        model_predictions = prior.get("model_predictions") or []
+        if not isinstance(model_predictions, list):
+            continue
+        result = f"{int(row['home_score'])}-{int(row['away_score'])}"
+        for prediction in model_predictions:
+            if not isinstance(prediction, dict):
+                continue
+            model_id = str(prediction.get("model_id") or "")
+            if model_id not in stats or model_id not in available:
+                continue
+            score = prediction.get("score")
+            if not score:
+                continue
+            try:
+                pts, exact, hit = _current_pick_score(str(score), result, scoring_config)
+            except Exception:
+                continue
+            stats[model_id]["pts"] = float(stats[model_id]["pts"]) + pts
+            stats[model_id]["exact"] = int(stats[model_id]["exact"]) + exact
+            stats[model_id]["hits"] = int(stats[model_id]["hits"]) + hit
+            stats[model_id]["played"] = int(stats[model_id]["played"]) + 1
+
+    ranked = [
+        (model_id, stat)
+        for model_id, stat in stats.items()
+        if int(stat["played"]) > 0
+    ]
+    if not ranked:
+        return None
+
+    ranked.sort(
+        key=lambda item: (
+            -float(item[1]["pts"]),
+            -int(item[1]["exact"]),
+            -int(item[1]["hits"]),
+            int(item[1]["order"]),
+        )
+    )
+    best_id, best = ranked[0]
+    print(
+        "[preferred_model] "
+        f"elegido={best_id}  pts_actuales={float(best['pts']):.0f}  "
+        f"exactos={int(best['exact'])}  partidos={int(best['played'])}  "
+        "tier=current_2026"
+    )
+    return best_id
+
+
+def _current_pick_score(
+    pick: str,
+    result: str,
+    scoring_config: dict[str, Any],
+) -> tuple[float, int, int]:
+    pick_a, pick_b = parse_score(pick)
+    result_a, result_b = parse_score(result)
+    exact_points = float(scoring_config.get("exact_score", 5))
+    margin_points = float(scoring_config.get("same_margin_or_draw", scoring_config.get("margin_or_draw", 3)))
+    winner_points = float(scoring_config.get("winner", 1))
+
+    if pick_a == result_a and pick_b == result_b:
+        return exact_points, 1, 1
+    if (pick_a - pick_b) == (result_a - result_b):
+        return margin_points, 0, 1 if margin_points > 0 else 0
+    if outcome_1x2(pick_a, pick_b) == outcome_1x2(result_a, result_b):
+        return winner_points, 0, 1 if winner_points > 0 else 0
+    return 0.0, 0, 0
+
+
 def write_ui_overrides(
     ui_path: Path,
     context: ModelContext,
@@ -330,7 +481,13 @@ def write_ui_overrides(
     existing_matches = existing.get("matches", {})
     matches: dict[str, dict[str, Any]] = {}
     model_order = list(predictions_by_model)
-    preferred = preferred_model_id if preferred_model_id in predictions_by_model else model_order[-1]
+
+    completed_ids = {
+        str(pm.source_match_id)
+        for pm in context.prediction_matches
+        if pm.status in ("completed", "finished")
+    }
+    preferred = preferred_model_id if preferred_model_id in predictions_by_model else None
 
     by_source_match: dict[str, dict[str, ModelPrediction]] = {}
     for model_id, predictions in predictions_by_model.items():
@@ -340,7 +497,25 @@ def write_ui_overrides(
     for source_match_id, model_predictions in by_source_match.items():
         prior = existing_matches.get(source_match_id, {})
         frozen = bool(prior.get("frozen_pick"))
-        preferred_prediction = model_predictions.get(preferred)
+        is_completed = source_match_id in completed_ids
+
+        if frozen and prior.get("model_predictions"):
+            matches[source_match_id] = prior
+            continue
+
+        prior_predictions = {
+            str(item.get("model_id")): item
+            for item in list(prior.get("model_predictions") or [])
+            if item.get("model_id")
+        }
+        current_predictions = {
+            prediction.model_id: _dashboard_model_prediction(prediction)
+            for prediction in model_predictions.values()
+            if prediction.status == "ok"
+        }
+        merged_predictions = {**prior_predictions, **current_predictions}
+
+        preferred_prediction = model_predictions.get(preferred) if preferred else None
         if frozen and prior.get("quiniela_pick"):
             quiniela_pick = prior["quiniela_pick"]
         elif preferred_prediction and preferred_prediction.status == "ok":
@@ -351,19 +526,27 @@ def write_ui_overrides(
                 "top_score": preferred_prediction.top_score,
                 "top_score_probability": preferred_prediction.top_score_probability,
             }
+        elif prior.get("quiniela_pick"):
+            quiniela_pick = prior["quiniela_pick"]
         else:
             quiniela_pick = None
 
+        should_freeze = is_completed and not frozen
+        if should_freeze and prior.get("model_predictions"):
+            prior["frozen_pick"] = True
+            matches[source_match_id] = prior
+            continue
+
         matches[source_match_id] = {
             "quiniela_pick": quiniela_pick,
-            "frozen_pick": frozen,
-            "model_predictions": [
-                _dashboard_model_prediction(prediction)
-                for prediction in model_predictions.values()
-                if prediction.status == "ok"
-            ],
+            "frozen_pick": frozen or should_freeze,
+            "model_predictions": list(merged_predictions.values()),
             "notes": f"prediction_run_id={context.prediction_run_id}",
         }
+
+    for emid, edata in existing_matches.items():
+        if emid not in matches:
+            matches[emid] = edata
 
     payload = {
         "generated_at_utc": utc_now(),

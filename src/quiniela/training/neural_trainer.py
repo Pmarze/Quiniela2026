@@ -32,6 +32,7 @@ def train_neural_scoreline(
     folds_only: bool = False,
     final_only: bool = False,
     resume: bool = True,
+    scoring_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     config = load_json_config(config_path)
     _set_seed(int(config["training"].get("seed", 42)))
@@ -91,6 +92,7 @@ def train_neural_scoreline(
                 save_artifact=False,
                 resume=resume,
                 run_label=f"fold {year}",
+                scoring_config=scoring_config,
             )
             metrics["folds"].append({"year": year, "status": "ok", **result["metrics"]})
 
@@ -121,6 +123,7 @@ def train_neural_scoreline(
             save_artifact=True,
             resume=resume,
             run_label="final",
+            scoring_config=scoring_config,
         )
         metrics["final"] = result["metrics"]
         metrics["artifact_dir"] = str(final_dir)
@@ -157,6 +160,7 @@ def _train_one(
     save_artifact: bool,
     resume: bool,
     run_label: str,
+    scoring_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     training = config["training"]
@@ -226,8 +230,8 @@ def _train_one(
 
     for epoch in range(start_epoch, max_epochs + 1):
         epoch_started = time.perf_counter()
-        train_loss = _run_epoch(model, train_loader, optimizer, scaler, device, loss_weights)
-        valid = _evaluate(model, valid_loader, device, loss_weights)
+        train_loss = _run_epoch(model, train_loader, optimizer, scaler, device, loss_weights, scoring_config)
+        valid = _evaluate(model, valid_loader, device, loss_weights, scoring_config)
         seconds = time.perf_counter() - epoch_started
         row = {
             "epoch": epoch,
@@ -310,7 +314,7 @@ def _train_one(
         logits_key="outcome_logits",
         target_key="outcome",
     )
-    final_metrics = _evaluate(model, valid_loader, device, loss_weights)
+    final_metrics = _evaluate(model, valid_loader, device, loss_weights, scoring_config)
     final_metrics.update(
         {
             "train_examples": len(train_examples),
@@ -344,6 +348,7 @@ def _train_one(
                 "scoreline_temperature": scoreline_temperature,
                 "outcome_temperature": outcome_temperature,
             },
+            "scoring_config": scoring_config,
         }
         (output_dir / "metadata.json").write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True),
@@ -365,6 +370,7 @@ def _run_epoch(
     scaler: torch.amp.GradScaler,
     device: torch.device,
     loss_weights: dict[str, float],
+    scoring_config: dict[str, Any] | None = None,
 ) -> float:
     model.train()
     total = 0.0
@@ -374,7 +380,7 @@ def _run_epoch(
         optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type=device.type, enabled=scaler.is_enabled()):
             output = model(batch["team_a"], batch["team_b"], batch["features"])
-            loss = _loss(output, batch, loss_weights)
+            loss = _loss(output, batch, loss_weights, scoring_config)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -388,6 +394,7 @@ def _evaluate(
     loader: DataLoader,
     device: torch.device,
     loss_weights: dict[str, float],
+    scoring_config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     model.eval()
     total_loss = 0.0
@@ -403,13 +410,13 @@ def _evaluate(
         for batch in loader:
             batch = _to_device(batch, device)
             output = model(batch["team_a"], batch["team_b"], batch["features"])
-            loss = _loss(output, batch, loss_weights)
+            loss = _loss(output, batch, loss_weights, scoring_config)
             score_probs = torch.softmax(output["scoreline_logits"], dim=1)
             score_pred = score_probs.argmax(dim=1)
             outcome_pred = output["outcome_logits"].argmax(dim=1)
             max_goals = int(math.sqrt(score_probs.shape[1]) - 1)
             matrix_outcome_pred = _outcome_probs_from_scoreline(score_probs, max_goals).argmax(dim=1)
-            quiniela = _quiniela_metrics(score_probs, batch["scoreline"])
+            quiniela = _quiniela_metrics(score_probs, batch["scoreline"], scoring_config)
             total_loss += float(loss.detach().cpu()) * len(batch["team_a"])
             exact += int((score_pred == batch["scoreline"]).sum().detach().cpu())
             outcome += int((outcome_pred == batch["outcome"]).sum().detach().cpu())
@@ -431,7 +438,12 @@ def _evaluate(
     }
 
 
-def _loss(output: dict[str, torch.Tensor], batch: dict[str, torch.Tensor], weights: dict[str, float]) -> torch.Tensor:
+def _loss(
+    output: dict[str, torch.Tensor],
+    batch: dict[str, torch.Tensor],
+    weights: dict[str, float],
+    scoring_config: dict[str, Any] | None = None,
+) -> torch.Tensor:
     score_weight = float(weights.get("scoreline", 0.55))
     outcome_weight = float(weights.get("outcome", 0.25))
     goals_weight = float(weights.get("goals", 0.15))
@@ -445,7 +457,7 @@ def _loss(output: dict[str, torch.Tensor], batch: dict[str, torch.Tensor], weigh
     outcome_from_scores = _outcome_probs_from_scoreline(score_probs, max_goals)
     outcome_probs = torch.softmax(output["outcome_logits"], dim=1)
     calibration_loss = F.mse_loss(outcome_probs, outcome_from_scores.detach(), reduction="none").mean(dim=1)
-    quiniela_loss = _quiniela_reward_loss(score_probs, batch["scoreline"], max_goals)
+    quiniela_loss = _quiniela_reward_loss(score_probs, batch["scoreline"], max_goals, scoring_config)
     combined = (
         score_weight * score_loss
         + outcome_weight * outcome_loss
@@ -460,16 +472,22 @@ def _quiniela_reward_loss(
     score_probs: torch.Tensor,
     actual_score_index: torch.Tensor,
     max_goals: int,
+    scoring_config: dict[str, Any] | None = None,
 ) -> torch.Tensor:
-    reward_matrix = _reward_matrix(max_goals, score_probs.device)
-    rewards_for_actual = reward_matrix[:, actual_score_index].transpose(0, 1)
+    rm = _reward_matrix(max_goals, score_probs.device, scoring_config)
+    max_pts = float((scoring_config or {}).get("exact_score", 5))
+    rewards_for_actual = rm[:, actual_score_index].transpose(0, 1)
     expected_reward = (score_probs * rewards_for_actual).sum(dim=1)
-    return 1.0 - expected_reward / 5.0
+    return 1.0 - expected_reward / max_pts
 
 
-def _quiniela_metrics(score_probs: torch.Tensor, actual_score_index: torch.Tensor) -> dict[str, torch.Tensor]:
+def _quiniela_metrics(
+    score_probs: torch.Tensor,
+    actual_score_index: torch.Tensor,
+    scoring_config: dict[str, Any] | None = None,
+) -> dict[str, torch.Tensor]:
     max_goals = int(math.sqrt(score_probs.shape[1]) - 1)
-    reward_matrix = _reward_matrix(max_goals, score_probs.device)
+    reward_matrix = _reward_matrix(max_goals, score_probs.device, scoring_config)
     candidate_ev = torch.matmul(score_probs, reward_matrix.transpose(0, 1))
     ev_pick = candidate_ev.argmax(dim=1)
     top_pick = score_probs.argmax(dim=1)
@@ -485,7 +503,14 @@ def _quiniela_metrics(score_probs: torch.Tensor, actual_score_index: torch.Tenso
     }
 
 
-def _reward_matrix(max_goals: int, device: torch.device) -> torch.Tensor:
+def _reward_matrix(
+    max_goals: int,
+    device: torch.device,
+    scoring_config: dict[str, Any] | None = None,
+) -> torch.Tensor:
+    exact_pts = float((scoring_config or {}).get("exact_score", 5))
+    margin_pts = float((scoring_config or {}).get("same_margin_or_draw", 3))
+    winner_pts = float((scoring_config or {}).get("winner", 1))
     side = max_goals + 1
     score_count = side * side
     idx = torch.arange(score_count, device=device)
@@ -502,9 +527,9 @@ def _reward_matrix(max_goals: int, device: torch.device) -> torch.Tensor:
     same_margin = (pred_outcome != 1) & (actual_outcome != 1) & (pred_diff == actual_diff)
     same_winner = pred_outcome == actual_outcome
     reward = torch.zeros((score_count, score_count), device=device)
-    reward = torch.where(same_winner, torch.full_like(reward, 1.0), reward)
-    reward = torch.where(same_draw | same_margin, torch.full_like(reward, 3.0), reward)
-    reward = torch.where(exact, torch.full_like(reward, 5.0), reward)
+    reward = torch.where(same_winner, torch.full_like(reward, winner_pts), reward)
+    reward = torch.where(same_draw | same_margin, torch.full_like(reward, margin_pts), reward)
+    reward = torch.where(exact, torch.full_like(reward, exact_pts), reward)
     return reward
 
 

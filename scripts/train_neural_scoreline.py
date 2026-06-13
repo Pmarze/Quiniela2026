@@ -11,6 +11,8 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
+from quiniela.models.common import load_json_config
+from quiniela.scoring.quiniela import resolve_scoring_profile
 from quiniela.training import train_neural_scoreline
 
 
@@ -23,11 +25,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--folds-only", action="store_true", help="Solo valida folds historicos; no entrena artefacto final.")
     parser.add_argument("--final-only", action="store_true", help="Solo entrena el artefacto final; no ejecuta folds.")
     parser.add_argument("--fresh", action="store_true", help="Ignora checkpoints previos y empieza desde cero.")
+    parser.add_argument("--scoring-profile", default=None, help="Nombre del perfil de scoring (ej: 3-1-0). Default: perfil por defecto.")
+    parser.add_argument("--scoring-config", default=str(PROJECT_ROOT / "configs" / "scoring.yaml"))
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    scoring_config = resolve_scoring_profile(
+        load_json_config(Path(args.scoring_config)),
+        args.scoring_profile,
+    ) if args.scoring_profile else None
     metrics = train_neural_scoreline(
         db_path=Path(args.db),
         config_path=Path(args.config),
@@ -36,6 +44,7 @@ def main() -> int:
         folds_only=args.folds_only,
         final_only=args.final_only,
         resume=not args.fresh,
+        scoring_config=scoring_config,
     )
     print(json.dumps(metrics, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

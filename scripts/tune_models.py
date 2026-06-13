@@ -47,6 +47,7 @@ from quiniela.models.common import (
     outcome_1x2,
     parse_score,
 )
+from quiniela.scoring.quiniela import resolve_scoring_profile
 from quiniela.storage.sqlite_store import SQLiteStore
 
 MODEL_RUNNERS = {
@@ -147,12 +148,13 @@ def main() -> None:
     parser.add_argument("--db",         type=Path, default=PROJECT_ROOT / "data" / "quiniela.db")
     parser.add_argument("--output",     type=Path, default=None)
     parser.add_argument("--top",        type=int, default=20)
+    parser.add_argument("--scoring-profile", default=None, help="Perfil de scoring (ej: 3-1-0). Default: perfil por defecto.")
     args = parser.parse_args()
 
     random.seed(args.seed)
 
     models_config  = load_json_config(PROJECT_ROOT / "configs" / "models.yaml")
-    scoring_config = load_json_config(PROJECT_ROOT / "configs" / "scoring.yaml")
+    scoring_config = resolve_scoring_profile(load_json_config(PROJECT_ROOT / "configs" / "scoring.yaml"), args.scoring_profile)
     base_model_config = next(
         (m for m in models_config.get("models", []) if m["model_id"] == args.model),
         {"model_id": args.model, "model_version": "tuning", "max_goals": 8},
@@ -187,13 +189,16 @@ def main() -> None:
     print(f"Modelo: {args.model}  |  Anos: {args.years}  |  Partidos: {n_total}", flush=True)
     print(f"Modo: {mode_str}  |  Workers: {n_workers}", flush=True)
 
+    scoring_label = args.scoring_profile or ""
     t0 = time.time()
     if n_workers == 1:
         results = _run_sequential(selected, base_model_config, scoring_config, wc_matches,
-                                  history_run_id, args.db, args.model, years=args.years)
+                                  history_run_id, args.db, args.model, years=args.years,
+                                  scoring_label=scoring_label)
     else:
         results = _run_parallel(n_workers, selected, base_model_config, scoring_config,
-                                args.years, history_run_id, args.db, args.model)
+                                args.years, history_run_id, args.db, args.model,
+                                scoring_label=scoring_label)
     elapsed = time.time() - t0
 
     results.sort(key=lambda r: r["metrics"]["points_efficiency"], reverse=True)
@@ -242,9 +247,10 @@ def main() -> None:
 # Sequential / parallel runners
 # ---------------------------------------------------------------------------
 
-def _checkpoint_path(model_id: str, years: list[int]) -> Path:
+def _checkpoint_path(model_id: str, years: list[int], scoring_label: str = "") -> Path:
     years_str = "_".join(str(y) for y in sorted(years))
-    return PROJECT_ROOT / "data" / "backtests" / f"tuning_{model_id}_{years_str}_checkpoint.json"
+    suffix = f"_{scoring_label}" if scoring_label else ""
+    return PROJECT_ROOT / "data" / "backtests" / f"tuning_{model_id}_{years_str}{suffix}_checkpoint.json"
 
 
 def _save_checkpoint(path: Path, model_id: str, years: list[int], results: list[dict[str, Any]]) -> None:
@@ -284,8 +290,9 @@ def _run_sequential(
     db_path: Path,
     model_id: str,
     years: list[int] | None = None,
+    scoring_label: str = "",
 ) -> list[dict[str, Any]]:
-    cp_path = _checkpoint_path(model_id, years or [])
+    cp_path = _checkpoint_path(model_id, years or [], scoring_label)
     done_results = _load_checkpoint(cp_path, model_id, years or [])
     done_keys = {json.dumps(r["params"], sort_keys=True) for r in done_results}
     pending = [t for t in trials if json.dumps(t, sort_keys=True) not in done_keys]
@@ -323,8 +330,9 @@ def _run_parallel(
     history_run_id: str,
     db_path: Path,
     model_id: str,
+    scoring_label: str = "",
 ) -> list[dict[str, Any]]:
-    cp_path = _checkpoint_path(model_id, years)
+    cp_path = _checkpoint_path(model_id, years, scoring_label)
     done_results = _load_checkpoint(cp_path, model_id, years)
     done_keys = {json.dumps(r["params"], sort_keys=True) for r in done_results}
     pending = [t for t in trials if json.dumps(t, sort_keys=True) not in done_keys]

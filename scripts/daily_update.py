@@ -4,7 +4,7 @@ daily_update.py — Flujo diario completo de la Quiniela2026.
 Pasos en orden:
   1. Descarga de datos + canónico + estado del torneo   (run_daily.py)
   2. Modelos de predicción → data/ui/prediction_overrides.json  (run_model.py)
-  3. Quinielas de amigos (Google Sheets) → data/ui/friends_quinielas.json
+  3. Quinielas de amigos → data/ui/friends_quinielas.json
   4. Dashboard HTML → docs/index.html                  (generate_dashboard.py)
   5. git add · commit · push → development
 

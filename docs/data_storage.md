@@ -100,38 +100,38 @@ Vistas iniciales:
 Con el entorno Conda `quiniela2026`:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\download_data.py
+python scripts\download_data.py
 ```
 
 Para ver un resumen:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\db_summary.py --samples
+python scripts\db_summary.py --samples
 ```
 
 Para recrear tablas/vistas sin descargar datos:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\init_db.py
+python scripts\init_db.py
 ```
 
 Para descargar e importar historicos de entrenamiento:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\build_history.py
+python scripts\build_history.py
 ```
 
 Para ejecutar modelos activos:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\run_model.py
+python scripts\run_model.py
 ```
 
 Para validar modelos contra Mundiales 2018 y 2022:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\run_backtest.py
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\generate_validation_dashboard.py
+python scripts\run_backtest.py
+python scripts\generate_validation_dashboard.py
 ```
 
 ## Notas

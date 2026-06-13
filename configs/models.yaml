@@ -2,7 +2,7 @@
   "default_quiniela_model_id": "weighted_points_ensemble",
   "models": [
     {
-      "active": true,
+      "active": false,
       "max_goals": 8,
       "model_id": "baseline_poisson",
       "model_version": "0.1.0",
@@ -165,13 +165,35 @@
     },
     {
       "active": true,
+      "analog_shrinkage_neighbors": 35.0,
+      "distance_temperature": 0.85,
+      "goal_scale": 0.45,
+      "home_advantage": 80.0,
+      "initial_rating": 1500.0,
+      "k_factor": 28.0,
+      "max_analog_weight": 0.7,
+      "max_expected_goals": 4.5,
+      "max_goals": 8,
+      "min_expected_goals": 0.2,
+      "min_index_matches": 200,
+      "min_neighbors_for_full_weight": 18.0,
+      "model_id": "similar_match_knn_scoreline",
+      "model_version": "0.1.0",
+      "neighbors": 50,
+      "notes": "Modelo experimental de partidos similares. Busca analogos historicos por fuerza relativa, perfiles ataque/defensa y contexto; mezcla la distribucion empirica de marcadores con un prior Poisson para evitar sobreajuste. Se evalua como modelo independiente y queda excluido de ponderadores hasta tener backtest.",
+      "profile_shrinkage_matches": 8.0,
+      "required": false
+    },
+    {
+      "active": true,
       "confidence_power": 0.35,
       "default_weight": 1.0,
       "ensemble": true,
       "exclude_models": [
         "baseline_poisson",
         "market_calibrated_poisson",
-        "opta_power_poisson"
+        "opta_power_poisson",
+        "similar_match_knn_scoreline"
       ],
       "fallback_weights": {
         "attack_defense_poisson": 0.75,
@@ -228,7 +250,8 @@
       "exclude_models": [
         "baseline_poisson",
         "market_calibrated_poisson",
-        "opta_power_poisson"
+        "opta_power_poisson",
+        "similar_match_knn_scoreline"
       ],
       "fallback_weights": {
         "attack_defense_poisson": 0.75,
@@ -286,7 +309,8 @@
       "exclude_models": [
         "baseline_poisson",
         "market_calibrated_poisson",
-        "opta_power_poisson"
+        "opta_power_poisson",
+        "similar_match_knn_scoreline"
       ],
       "fallback_weights": {
         "attack_defense_poisson": 0.75,
@@ -361,7 +385,8 @@
       "exclude_models": [
         "baseline_poisson",
         "market_calibrated_poisson",
-        "opta_power_poisson"
+        "opta_power_poisson",
+        "similar_match_knn_scoreline"
       ],
       "fallback_weights": {
         "attack_defense_poisson": 0.8,
@@ -419,7 +444,8 @@
       "exclude_models": [
         "baseline_poisson",
         "market_calibrated_poisson",
-        "opta_power_poisson"
+        "opta_power_poisson",
+        "similar_match_knn_scoreline"
       ],
       "fallback_weights": {
         "attack_defense_poisson": 0.8,

@@ -1,6 +1,6 @@
 # Quiniela2026
 
-Proyecto privado para estimar pronosticos de quiniela del Mundial 2026 con modelos modulares de goles, backtesting historico, simulacion Monte Carlo, redes neuronales y tableros locales.
+Proyecto para estimar pronosticos de quiniela del Mundial 2026 con modelos modulares de goles, backtesting historico, simulacion Monte Carlo, redes neuronales y dashboards publicos/locales.
 
 El contexto general vive en [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md). La documentacion tecnica vive en [docs/](docs/), y las decisiones incrementales en [docs/knowledge/000_index.md](docs/knowledge/000_index.md).
 
@@ -15,7 +15,7 @@ Implementado:
 - Estado del torneo con cortes diarios.
 - Modelos Poisson/Elo, empates, Monte Carlo, Opta externo y redes neuronales.
 - Ensambles ponderados con optimizacion por backtest 2018/2022.
-- Dashboard local de seguimiento del torneo.
+- Dashboard publico de seguimiento del torneo, incluyendo comparacion de quinielas de amigos.
 - Dashboard local de validacion historica.
 
 Modelo de quiniela activo por defecto:
@@ -48,11 +48,24 @@ python scripts\generate_validation_dashboard.py
 
 ## Dashboards
 
-Los HTML generados se guardan localmente en:
+El dashboard publico se genera en:
+
+```text
+docs/index.html
+```
+
+Los HTML locales de apoyo se guardan en:
 
 ```text
 outputs/dashboard/index.html
 outputs/validation_dashboard/index.html
+```
+
+Por defecto, `python scripts\generate_dashboard.py` incluye `data/ui/friends_quinielas.json` si existe,
+para que la pagina en linea y la local se vean igual. Para generar una version sin amigos:
+
+```powershell
+python scripts\generate_dashboard.py --exclude-friends
 ```
 
 ## Datos y Artefactos
@@ -66,7 +79,9 @@ Se comparte:
 - `scripts/bootstrap_data.py`: reconstruccion de datos locales.
 - `scripts/publish_model.py`: publicacion controlada de modelos entrenados.
 
-No se comparte `data/` ni `outputs/` salvo `.gitkeep`. Ver [docs/repository_setup.md](docs/repository_setup.md).
+No se comparte `data/` ni `outputs/` salvo excepciones explicitas como `data/ui/prediction_overrides.json`
+y `data/ui/friends_quinielas.json`. El enlace/ID de Google Sheets se guarda fuera del repo en
+`configs/friends_sheet.local.json` o variables de entorno. Ver [docs/repository_setup.md](docs/repository_setup.md).
 
 ## Documentos Principales
 

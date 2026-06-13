@@ -59,6 +59,7 @@ from quiniela.models.common import (
     outcome_1x2,
     parse_score,
 )
+from quiniela.scoring.quiniela import resolve_scoring_profile
 
 try:
     import optuna
@@ -114,6 +115,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--study-name",   default="tune_calibration_v1")
     parser.add_argument("--dry-run",      action="store_true",
                         help="Muestra resultados sin modificar models.yaml")
+    parser.add_argument("--scoring-profile", default=None, help="Perfil de scoring (ej: 3-1-0).")
     return parser.parse_args()
 
 
@@ -130,7 +132,7 @@ def main() -> int:
         return 1
 
     models_config  = load_json_config(Path(args.models_config))
-    scoring_config = load_json_config(Path(args.scoring_config))
+    scoring_config = resolve_scoring_profile(load_json_config(Path(args.scoring_config)), args.scoring_profile)
 
     target_config = next(
         (m for m in models_config.get("models", []) if m.get("model_id") == TARGET_MODEL_ID),

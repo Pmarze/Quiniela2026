@@ -9,7 +9,7 @@ Ya existe una implementacion ejecutable para descargar e importar la fuente hist
 Se ejecuto usando el entorno Conda principal:
 
 ```text
-C:\Users\pablo\.conda\envs\quiniela2026\python.exe
+python
 ```
 
 ## Archivos creados o actualizados
@@ -40,7 +40,7 @@ python scripts\build_history.py
 Con ruta completa al Python del entorno:
 
 ```powershell
-& "C:\Users\pablo\.conda\envs\quiniela2026\python.exe" scripts\build_history.py
+python scripts\build_history.py
 ```
 
 ## Primera corrida exitosa

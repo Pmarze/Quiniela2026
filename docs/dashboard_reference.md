@@ -8,27 +8,40 @@
 | `src/quiniela/ui/dashboard_template.html` | Template HTML/CSS/JS — editar para cambios de interfaz o comportamiento visual |
 | `data/ui/prediction_overrides.json` | Fuente de predicciones y picks de quiniela |
 | `data/quiniela.db` | Base de datos SQLite con estado del torneo y backtest |
+| `docs/index.html` | Salida publica del dashboard; incluye `DATA.friends` si existe el JSON |
 | `outputs/dashboard/index.html` | Salida generada (no editar directamente) |
 
 ## Cómo regenerar
 
 ```bash
-# Desde la raíz del proyecto, con el entorno quiniela2026
+# Desde la raiz del proyecto, con el entorno quiniela2026
 python scripts/generate_dashboard.py \
   --db data/quiniela.db \
   --predictions data/ui/prediction_overrides.json \
+  --output docs/index.html
+
+# Version sin amigos solo si se pide explicitamente
+python scripts/generate_dashboard.py \
+  --exclude-friends \
+  --db data/quiniela.db \
+  --predictions data/ui/prediction_overrides.json \
   --output outputs/dashboard/index.html
+
+python scripts/check_public_dashboard.py docs/index.html
 ```
 
-El intérprete correcto es:
-`C:\Users\pablo\.conda\envs\quiniela2026\python.exe`
+Activar antes el entorno:
+
+```powershell
+conda activate quiniela2026
+```
 
 ---
 
 ## Arquitectura del generador (`dashboard.py`)
 
 ```
-generate_dashboard()               ← punto de entrada, firma no cambia
+generate_dashboard()               ← punto de entrada del dashboard
   ├── _load_latest_state()         ← lee v_latest_tournament_state
   ├── _load_matches()              ← lee v_latest_state_matches
   ├── _load_group_tables()         ← lee v_latest_state_group_tables
@@ -43,7 +56,7 @@ generate_dashboard()               ← punto de entrada, firma no cambia
 - **`_FAMILY_BY_MODEL_ID`** — mapea `model_id` → `{family, fb}` para badges CSS
 - **`_STAGE_TO_PHASE`** — mapea `stage` del DB → `phase` del JS (`"round_of_16"` → `"r16"`)
 
-Para agregar un modelo nuevo, añadir una entrada en `_FAMILY_BY_MODEL_ID`. Las clases CSS disponibles son: `fb-ctrl fb-fgol fb-mba fb-atd fb-emp fb-1x2 fb-neu fb-pond`.
+Para agregar un modelo nuevo, añadir una entrada en `_FAMILY_BY_MODEL_ID`. Las clases CSS disponibles son: `fb-ctrl fb-fgol fb-mba fb-atd fb-emp fb-1x2 fb-neu fb-sim fb-pond`.
 
 ---
 
@@ -52,6 +65,7 @@ Para agregar un modelo nuevo, añadir una entrada en `_FAMILY_BY_MODEL_ID`. Las 
 ```js
 const DATA = {
   meta: { generated_at, run_id, phase },
+  access: { public_mode, private_sections, private_hash },
   kpis: { total, played, live, scheduled, locked },
   groups: [{ id: "A", teams: [{ t: "México" }] }],
   matches: [{
@@ -74,6 +88,10 @@ const DATA = {
   }
 }
 ```
+
+En `docs/index.html`, `friends` puede contener quinielas de amigos para que la version en linea
+se vea igual que la local. El enlace/ID de Google Sheets no debe aparecer en el HTML ni en archivos
+versionados; se guarda en `configs/friends_sheet.local.json` o variables de entorno.
 
 ### Campos de `prediction_overrides.json` → `matches[i]`
 
@@ -142,6 +160,7 @@ Archivo de 1632 líneas. Estructura interna:
 | `buildHeatmapChart(m, models)` | Heatmap de frecuencia de marcadores TOP |
 | `buildProbabilityChart(m, models)` | Barras 1X2 con rango min/max y EV promedio |
 | `buildCurrentRankData()` | Acumula puntos por modelo de partidos con `result != null` |
+| `showCurrentModelHover(modelId, mode, el)` | Panel clickeable de Validación 2026: compara un modelo contra resultados reales del torneo actual |
 | `calcMatchPoints(pick, result)` | Regla 5/3/1/0 de la quiniela |
 | `filterPreds()` | Filtra tabla de predicciones del backtest con los multi-select |
 | `toggleDark()` | Alterna light/dark y persiste en localStorage `q2026_theme` |
@@ -159,8 +178,20 @@ Los botones de flecha usan `setHoverSheet('stats'|'models')` y `setModalSheet('s
 La hoja `stats` contiene:
 
 - Scatter xG: usa `models[i].xg`, parseado desde strings tipo `"1.74-1.13"`. La diagonal gris indica igualdad de xG; las lineas doradas indican el promedio de xG local y visitante entre modelos. El scatter ignora valores no finitos o mayores a 6.0 como red de seguridad visual.
-- Heatmap de marcadores: cuenta la frecuencia de `models[i].top` en una grilla 0, 1, 2, 3+ para local y visitante.
-- Probabilidad 1X2: usa `p1`, `px`, `p2` para promedio y rango min/max por mercado; el EV mostrado es el promedio de `models[i].ev` de los modelos cuyo `out` coincide con ese mercado.
+- Scatter xG tambien puede mostrar una estrella de referencia de amistosos recientes ponderados.
+- Heatmap de marcadores: cuenta la frecuencia de `models[i].top` o `models[i].score` en una grilla 0, 1, 2, 3+ para local y visitante. Muestra porcentaje como valor principal y el conteo exacto de modelos como numero pequeno.
+- Probabilidad 1X2: usa `p1`, `px`, `p2` para promedio y rango min/max por mercado. Tiene dos carriles: consenso promedio y modelo lider actual. El EV mostrado es el promedio de `models[i].ev` de los modelos cuyo `out` coincide con ese mercado.
+- Amistosos recientes: muestra ultimos 5 amistosos por equipo y referencia ponderada de probabilidad de gol.
+
+### Validacion 2026 actual
+
+Los paneles `2026 · Max Pts.` y `2026 · Más Probable` son clickeables por modelo.
+
+Al hacer click, `showCurrentModelHover(modelId, mode, el)` muestra solamente partidos ya jugados del torneo actual:
+
+- si `mode === "score"`, evalua primero `mod.score`
+- si `mode === "top"`, evalua primero `mod.top`
+- muestra puntos, exactos, aciertos, 1X2, `P(real)`, xG y error xG partido por partido
 
 ### Dark mode
 
