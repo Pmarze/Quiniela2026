@@ -66,7 +66,7 @@ def build_canonical_dataset(
             timezone_config=timezone_config,
             teams_by_source_id={row["primary_source_team_id"]: row for row in teams},
         )
-        _enrich_results_from_secondary_sources(conn, matches)
+        _enrich_results_from_secondary_sources(conn, matches, run["as_of_utc"])
         _write_canonical_rows(
             conn=conn,
             canonical_run_id=canonical_run_id,
@@ -562,6 +562,7 @@ def _is_completed(status: Any, finished: Any, home_score: Any, away_score: Any) 
 def _enrich_results_from_secondary_sources(
     conn: sqlite3.Connection,
     matches: list[dict[str, Any]],
+    as_of_utc: str,
 ) -> None:
     """Patch result data into canonical match dicts for games still without results.
 
@@ -569,8 +570,12 @@ def _enrich_results_from_secondary_sources(
     ordering may differ from secondary sources (openfootball). Secondary sources
     use team names as source_team_id. We match by normalizing both team names and
     comparing pairs regardless of position in the match list.
+
+    Only secondary rows with kickoff_local <= as_of_utc are used to prevent
+    incorrect future-match results from contaminating the canonical dataset.
     """
     # Collect secondary-source rows that have a result (finished=1, scores not null)
+    # and whose kickoff is not in the future relative to the ingestion cutoff.
     rows = conn.execute(
         """
         SELECT
@@ -580,14 +585,20 @@ def _enrich_results_from_secondary_sources(
             home_score,
             away_score,
             status,
-            finished
+            finished,
+            kickoff_local
         FROM matches
         WHERE source_name != 'worldcup26_ir'
           AND finished = 1
           AND home_score IS NOT NULL
           AND away_score IS NOT NULL
+          AND (
+              kickoff_local IS NULL
+              OR substr(kickoff_local, 1, 10) <= ?
+          )
         ORDER BY source_name, match_number
-        """
+        """,
+        (as_of_utc[:10],),  # compare YYYY-MM-DD prefix; as_of_utc is ISO-8601
     ).fetchall()
 
     # Build lookup: normalized sorted team pair -> (home_score, away_score, status, orig_a_name)
