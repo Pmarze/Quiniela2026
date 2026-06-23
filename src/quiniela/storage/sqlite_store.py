@@ -667,6 +667,27 @@ CREATE INDEX IF NOT EXISTS idx_state_team_form_group ON state_team_form(state_id
 
 DROP VIEW IF EXISTS v_worldcup26_matches;
 CREATE VIEW v_worldcup26_matches AS
+-- Selects the best row per match_number across all sources.
+-- Priority: prefer rows that have actual scores, then worldcup26_ir > openfootball > rezarahiminia.
+WITH ranked AS (
+    SELECT
+        m.*,
+        ROW_NUMBER() OVER (
+            PARTITION BY m.match_number
+            ORDER BY
+                CASE WHEN m.home_score IS NOT NULL AND m.away_score IS NOT NULL THEN 0 ELSE 1 END,
+                CASE m.source_name
+                    WHEN 'worldcup26_ir'            THEN 1
+                    WHEN 'openfootball_worldcup_json' THEN 2
+                    WHEN 'rezarahiminia_static_csv'  THEN 3
+                    ELSE 9
+                END,
+                m.updated_at_utc DESC
+        ) AS _rn
+    FROM matches m
+    WHERE m.match_number IS NOT NULL
+      AND m.match_number BETWEEN 1 AND 104
+)
 SELECT
     m.source_match_id,
     m.match_number,
@@ -694,7 +715,7 @@ SELECT
     m.finished,
     m.updated_run_id,
     m.updated_at_utc
-FROM matches m
+FROM ranked m
 LEFT JOIN teams ta
     ON ta.source_name = m.source_name
    AND ta.source_team_id = m.team_a_source_id
@@ -704,7 +725,7 @@ LEFT JOIN teams tb
 LEFT JOIN stadiums s
     ON s.source_name = m.source_name
    AND s.source_stadium_id = m.stadium_source_id
-WHERE m.source_name = 'worldcup26_ir';
+WHERE m._rn = 1;
 
 DROP VIEW IF EXISTS v_worldcup26_group_standings;
 CREATE VIEW v_worldcup26_group_standings AS

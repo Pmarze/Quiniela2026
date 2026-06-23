@@ -66,6 +66,7 @@ def build_canonical_dataset(
             timezone_config=timezone_config,
             teams_by_source_id={row["primary_source_team_id"]: row for row in teams},
         )
+        _enrich_results_from_secondary_sources(conn, matches)
         _write_canonical_rows(
             conn=conn,
             canonical_run_id=canonical_run_id,
@@ -556,6 +557,86 @@ def _is_completed(status: Any, finished: Any, home_score: Any, away_score: Any) 
     if text in {"finished", "completed", "played", "ft", "full_time", "final"}:
         return True
     return home_score is not None and away_score is not None
+
+
+def _enrich_results_from_secondary_sources(
+    conn: sqlite3.Connection,
+    matches: list[dict[str, Any]],
+) -> None:
+    """Patch result data into canonical match dicts for games still without results.
+
+    The primary source (worldcup26_ir) uses numeric team IDs and its match_number
+    ordering may differ from secondary sources (openfootball). Secondary sources
+    use team names as source_team_id. We match by normalizing both team names and
+    comparing pairs regardless of position in the match list.
+    """
+    # Collect secondary-source rows that have a result (finished=1, scores not null)
+    rows = conn.execute(
+        """
+        SELECT
+            source_name,
+            team_a_source_id,
+            team_b_source_id,
+            home_score,
+            away_score,
+            status,
+            finished
+        FROM matches
+        WHERE source_name != 'worldcup26_ir'
+          AND finished = 1
+          AND home_score IS NOT NULL
+          AND away_score IS NOT NULL
+        ORDER BY source_name, match_number
+        """
+    ).fetchall()
+
+    # Build lookup: normalized sorted team pair -> (home_score, away_score, status, orig_a_name)
+    # orig_a_name lets us restore correct home/away orientation.
+    secondary: dict[tuple[str, str], tuple[int, int, str, str]] = {}
+    for row in rows:
+        na = _normalize_team_name(str(row["team_a_source_id"] or ""))
+        nb = _normalize_team_name(str(row["team_b_source_id"] or ""))
+        if not na or not nb:
+            continue
+        key = (na, nb) if na <= nb else (nb, na)
+        if key not in secondary:
+            secondary[key] = (
+                int(row["home_score"]),
+                int(row["away_score"]),
+                str(row["status"] or "finished"),
+                na,  # original a-side normalized name
+            )
+
+    enriched = 0
+    for m in matches:
+        if m.get("is_completed"):
+            continue
+        na = _normalize_team_name(str(m.get("team_a_name") or m.get("team_a_primary_source_id") or ""))
+        nb = _normalize_team_name(str(m.get("team_b_name") or m.get("team_b_primary_source_id") or ""))
+        if not na or not nb:
+            continue
+
+        key = (na, nb) if na <= nb else (nb, na)
+        result = secondary.get(key)
+        if result is None:
+            continue
+
+        h_score, a_score, src_status, orig_na = result
+        # Restore home/away orientation relative to canonical team_a
+        if orig_na == na:
+            m["home_score"] = h_score
+            m["away_score"] = a_score
+        else:
+            m["home_score"] = a_score
+            m["away_score"] = h_score
+
+        m["status"] = "completed"
+        m["source_status"] = src_status
+        m["is_completed"] = 1
+        enriched += 1
+
+    if enriched:
+        print(f"[enrich] Patched {enriched} matches with secondary-source results.")
 
 
 def _source_names(conn: sqlite3.Connection) -> list[str]:
