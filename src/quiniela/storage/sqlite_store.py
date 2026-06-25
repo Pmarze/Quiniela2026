@@ -675,13 +675,13 @@ WITH ranked AS (
         ROW_NUMBER() OVER (
             PARTITION BY m.match_number
             ORDER BY
-                CASE WHEN m.home_score IS NOT NULL AND m.away_score IS NOT NULL THEN 0 ELSE 1 END,
                 CASE m.source_name
                     WHEN 'worldcup26_ir'            THEN 1
                     WHEN 'openfootball_worldcup_json' THEN 2
                     WHEN 'rezarahiminia_static_csv'  THEN 3
                     ELSE 9
                 END,
+                CASE WHEN m.home_score IS NOT NULL AND m.away_score IS NOT NULL THEN 0 ELSE 1 END,
                 m.updated_at_utc DESC
         ) AS _rn
     FROM matches m
